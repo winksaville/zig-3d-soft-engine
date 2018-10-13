@@ -76,11 +76,16 @@ pub fn main() !void {
     warn("main: framebuffer width={} height={}\n", width, height);
 
     // Allocate a pixel buffer and associate it with a texture
-    var numPixels: usize = @intCast(usize, width * height);
-    var pixels = try pAllocator.alignedAlloc(u8, 16, numPixels * 4); // Fails if alignment > 16, Why?
+    var num_pixels: usize = @intCast(usize, width * height);
+    var pixels = try pAllocator.alignedAlloc(u8, 16, num_pixels * 4); // Fails if alignment > 16, Why?
     defer pAllocator.free(pixels);
     gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
             0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[0]));
+
+    var frame_buffer: gl.GLuint = undefined;
+    gl.glGenFramebuffers(1, ptr(&frame_buffer));
+    warn("frame_buffer[0]={}\n", frame_buffer);
+    defer gl.glDeleteFramebuffers(1, ptr(&frame_buffer));
 
     while (gl.glfwWindowShouldClose(window) == gl.GL_FALSE) {
         gl.glfwPollEvents();
