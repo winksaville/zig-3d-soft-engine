@@ -14,6 +14,7 @@ pub fn build(b: *Builder) void {
 
     exe.linkSystemLibrary("c");
     exe.linkSystemLibrary("glfw");
+    exe.linkSystemLibrary("epoxy");
     exe.setOutputPath("./3d-soft-engine");
     
     b.default_step.dependOn(&exe.step);

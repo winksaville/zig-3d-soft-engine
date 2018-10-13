@@ -1,27 +1,22 @@
 const std = @import("std");
 const warn = std.debug.warn;
 const os = std.os;
-const gl = @cImport({@cInclude("GLFW/glfw3.h");});
+const gl = @cImport({
+    @cInclude("epoxy/gl.h");
+    @cInclude("GLFW/glfw3.h");
+});
+const heap = std.heap;
 
 // Convert a C pointer parameter of the form
 // `*type` such as `*c_int` to `?[*]type` or `?[*]const type`.
-// This is necessary because in C pointers can be null and
-// point to one or more items which is exactly `?[*]type` in zig.
-//
-// From: https://github.com/andrewrk/tetris/src/c.zig ptr
-// This is using labeled breaks, see [Blocks](https://ziglang.org/documentation/master/#blocks),
-// to return the const or non-const optional (aka. nullable) pointer.
-pub fn ptr(p: var) t: {
-    const T = @typeOf(p);
-    const info = @typeInfo(@typeOf(p)).Pointer;
-    break :t if (info.is_const) ?[*]const info.child else ?[*]info.child;
-} {
-    const ReturnType = t: {
-        const T = @typeOf(p);
-        const info = @typeInfo(@typeOf(p)).Pointer;
-        break :t if (info.is_const) ?[*]const info.child else ?[*]info.child;
-    };
-    return @ptrCast(ReturnType, p);
+// Thanks to [dbanstra on IRC](http://bit.ly/2Ommi0V).
+fn cvrtPtrToOptionalPtrArray(comptime T: type) type {
+  const info = @typeInfo(T).Pointer;
+  return if (info.is_const) ?[*]const info.child else ?[*]info.child;
+}
+
+pub fn ptr(p: var) cvrtPtrToOptionalPtrArray(@typeOf(p)) {
+  return @ptrCast(cvrtPtrToOptionalPtrArray(@typeOf(p)), p);
 }
 
 extern fn errorCallback(err: c_int, description: ?[*]const u8) void {
@@ -45,10 +40,12 @@ pub fn errorExit(strg: []const u8) noreturn {
     os.abort();
 }
 
-pub fn main() void {
+pub fn main() !void {
     warn("main:+\n");
     defer warn("main:-\n");
 
+    var pAllocator = heap.c_allocator;
+    
     // Ignore the previous callback funtion returned, we know it'll be null
     _ = gl.glfwSetErrorCallback(errorCallback);
 
@@ -77,6 +74,13 @@ pub fn main() void {
     var height: c_int = undefined;
     gl.glfwGetFramebufferSize(window, ptr(&width), ptr(&height));
     warn("main: framebuffer width={} height={}\n", width, height);
+
+    // Allocate a pixel buffer and associate it with a texture
+    var numPixels: usize = @intCast(usize, width * height);
+    var pixels = try pAllocator.alignedAlloc(u8, 16, numPixels * 4); // Fails if alignment > 16, Why?
+    defer pAllocator.free(pixels);
+    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
+            0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[0]));
 
     while (gl.glfwWindowShouldClose(window) == gl.GL_FALSE) {
         gl.glfwPollEvents();
