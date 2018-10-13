@@ -1,4 +1,5 @@
 const std = @import("std");
+const assert = std.debug.assert;
 const warn = std.debug.warn;
 const os = std.os;
 const gl = @cImport({
@@ -40,6 +41,29 @@ pub fn errorExit(strg: []const u8) noreturn {
     os.abort();
 }
 
+fn getActiveTexture() gl.GLuint {
+    var texture: gl.GLint = undefined;
+    gl.glGetIntegerv(gl.GL_ACTIVE_TEXTURE, ptr(&texture));
+    return @intCast(gl.GLuint, texture);
+}
+
+fn setActiveTexture(texture: gl.GLuint) void {
+    gl.glActiveTexture(texture);
+}
+
+fn fboStatusStr(fbo_status: gl.GLuint) []const u8 {
+    var fbo_status_str: []const u8 = switch (fbo_status) {
+        gl.GL_FRAMEBUFFER_UNDEFINED => "UNDEFINED",
+        gl.GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT => "INCOMPLETE_ATTACHMENT",
+        gl.GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT => "INCOMPLETE_MISSING_ATTACHMENT",
+        gl.GL_FRAMEBUFFER_UNSUPPORTED => "UNSUPPORTED",
+        gl.GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE => "INCOMPLETE_MULTISAMPLE",
+        gl.GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS => "INCOMPLETE_LAYER_TARGETS",
+        else => "<unknown>",
+    };
+    return fbo_status_str;
+}
+
 pub fn main() !void {
     warn("main:+\n");
     defer warn("main:-\n");
@@ -75,17 +99,52 @@ pub fn main() !void {
     gl.glfwGetFramebufferSize(window, ptr(&width), ptr(&height));
     warn("main: framebuffer width={} height={}\n", width, height);
 
-    // Allocate a pixel buffer and associate it with a texture
+    // Allocate two pixel buffers and associate them with a texture
     var num_pixels: usize = @intCast(usize, width * height);
-    var pixels = try pAllocator.alignedAlloc(u8, 16, num_pixels * 4); // Fails if alignment > 16, Why?
-    defer pAllocator.free(pixels);
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
-            0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[0]));
+    var pixels: [2][]u8 = undefined;
+    pixels[0] = try pAllocator.alignedAlloc(u8, 16, num_pixels * 4); // Fails if alignment > 16, Why?
+    pixels[1] = try pAllocator.alignedAlloc(u8, 16, num_pixels * 4);
+    defer pAllocator.free(pixels[0]);
+    defer pAllocator.free(pixels[1]);
 
-    var frame_buffer: gl.GLuint = undefined;
-    gl.glGenFramebuffers(1, ptr(&frame_buffer));
-    warn("frame_buffer[0]={}\n", frame_buffer);
-    defer gl.glDeleteFramebuffers(1, ptr(&frame_buffer));
+    // Number of textures
+    const min_texture: gl.GLint = gl.GL_TEXTURE0;
+    const max_texture: gl.GLint = gl.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS;
+    assert((max_texture - min_texture) >= 32);
+
+    // Array of textures
+    var textures: [2] gl.GLuint = undefined;
+
+    // What is the current active texture
+    warn("Initial: texture={} min={} max={} count={}\n", getActiveTexture(), min_texture, max_texture, max_texture - min_texture);
+
+    // Initialize the GL_TEXTURE0
+    textures[0] = gl.GL_TEXTURE0;
+    setActiveTexture(textures[0]);
+    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
+            0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[0][0]));
+    warn("texture[0]={}\n", textures[0]);
+    assert(getActiveTexture() == textures[0]);
+
+    // Initialize the GL_TEXTURE1
+    textures[1] = gl.GL_TEXTURE1;
+    setActiveTexture(textures[1]);
+    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
+            0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[1][0]));
+    warn("texture[1]={}\n", textures[1]);
+    assert(getActiveTexture() == textures[1]);
+
+    // Generate a framebuffer object, fb0
+    var fbo: gl.GLuint = undefined;
+    gl.glGenFramebuffers(1, ptr(&fbo));
+    warn("frame_buffer[0]={}\n", fbo);
+    defer gl.glDeleteFramebuffers(1, ptr(&fbo));
+
+    gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, fbo);
+    var fbo_status = gl.glCheckFramebufferStatus(gl.GL_FRAMEBUFFER);
+    warn("fb0_status={} \"{}\"\n", fbo_status, fboStatusStr(fbo_status));
+
+    //glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_TEXTURE_2D, texture, 0);
 
     while (gl.glfwWindowShouldClose(window) == gl.GL_FALSE) {
         gl.glfwPollEvents();
