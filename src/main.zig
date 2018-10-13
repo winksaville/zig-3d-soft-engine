@@ -3,6 +3,27 @@ const warn = std.debug.warn;
 const os = std.os;
 const gl = @cImport({@cInclude("GLFW/glfw3.h");});
 
+// Convert a C pointer parameter of the form
+// `*type` such as `*c_int` to `?[*]type` or `?[*]const type`.
+// This is necessary because in C pointers can be null and
+// point to one or more items which is exactly `?[*]type` in zig.
+//
+// From: https://github.com/andrewrk/tetris/src/c.zig ptr
+// This is using labeled breaks, see [Blocks](https://ziglang.org/documentation/master/#blocks),
+// to return the const or non-const optional (aka. nullable) pointer.
+pub fn ptr(p: var) t: {
+    const T = @typeOf(p);
+    const info = @typeInfo(@typeOf(p)).Pointer;
+    break :t if (info.is_const) ?[*]const info.child else ?[*]info.child;
+} {
+    const ReturnType = t: {
+        const T = @typeOf(p);
+        const info = @typeInfo(@typeOf(p)).Pointer;
+        break :t if (info.is_const) ?[*]const info.child else ?[*]info.child;
+    };
+    return @ptrCast(ReturnType, p);
+}
+
 extern fn errorCallback(err: c_int, description: ?[*]const u8) void {
     warn("GLFW Error: {}\n", description);
     os.abort();
@@ -51,6 +72,11 @@ pub fn main() void {
     _ = gl.glfwSetKeyCallback(window, keyCallback);
 
     gl.glfwMakeContextCurrent(window);
+
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    gl.glfwGetFramebufferSize(window, ptr(&width), ptr(&height));
+    warn("main: framebuffer width={} height={}\n", width, height);
 
     while (gl.glfwWindowShouldClose(window) == gl.GL_FALSE) {
         gl.glfwPollEvents();
