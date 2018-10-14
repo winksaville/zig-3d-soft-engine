@@ -99,6 +99,17 @@ pub fn main() !void {
     gl.glfwGetFramebufferSize(window, ptr(&width), ptr(&height));
     warn("main: framebuffer width={} height={}\n", width, height);
 
+    // Texture properties after initialization
+    const texture_min: gl.GLuint = gl.GL_TEXTURE0;
+    const texture_max: gl.GLuint = gl.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS;
+    const texture_count: gl.GLuint = texture_max - texture_min;
+    assert(texture_count >= 32);
+    assert(getActiveTexture() == texture_min);
+
+    // What is the current active texture and what is the min/max/count
+    warn("Current: active texture={} min={} max={} count={}\n",
+        getActiveTexture(), texture_min, texture_max, texture_count);
+
     // Allocate two pixel buffers and associate them with a texture
     var num_pixels: usize = @intCast(usize, width * height);
     var pixels: [2][]u8 = undefined;
@@ -107,16 +118,8 @@ pub fn main() !void {
     defer pAllocator.free(pixels[0]);
     defer pAllocator.free(pixels[1]);
 
-    // Number of textures
-    const min_texture: gl.GLint = gl.GL_TEXTURE0;
-    const max_texture: gl.GLint = gl.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS;
-    assert((max_texture - min_texture) >= 32);
-
     // Array of textures
     var textures: [2] gl.GLuint = undefined;
-
-    // What is the current active texture
-    warn("Initial: texture={} min={} max={} count={}\n", getActiveTexture(), min_texture, max_texture, max_texture - min_texture);
 
     // Initialize the GL_TEXTURE0
     textures[0] = gl.GL_TEXTURE0;
