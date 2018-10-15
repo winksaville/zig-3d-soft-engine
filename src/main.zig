@@ -36,6 +36,22 @@ extern fn keyCallback(window: ?*gl.GLFWwindow, key: c_int,  scancode: c_int, act
     }
 }
 
+extern fn windowPosCallback(window: ?*gl.GLFWwindow, xpos: c_int, ypos: c_int) void {
+    warn("windowPosCallback: xpos={} ypos={}\n", xpos, ypos);
+}
+
+extern fn cursorEnterCallback(window: ?*gl.GLFWwindow, entered: c_int) void {
+    warn("cursorEnterCallback: entered={}\n", entered);
+}
+
+extern fn cursorPosCallback(window: ?*gl.GLFWwindow, xpos: f64, ypos: f64) void {
+    warn("cursorPosCallback: xpos={} ypos={}\n", xpos, ypos);
+}
+
+extern fn mouseButtonCallback(window: ?*gl.GLFWwindow, button: c_int, action: c_int, mods: c_int) void {
+    warn("keyCallback: button={x} action={x} mods={x}\n", button, action, mods);
+}
+
 pub fn errorExit(strg: []const u8) noreturn {
     warn("{}", strg);
     os.abort();
@@ -64,80 +80,66 @@ fn fboStatusStr(fbo_status: gl.GLuint) []const u8 {
     return fbo_status_str;
 }
 
-pub fn main() !void {
+pub fn main() void {
     warn("main:+\n");
     defer warn("main:-\n");
 
     var pAllocator = heap.c_allocator;
     
-    // Ignore the previous callback funtion returned, we know it'll be null
+    // Ignore the previous callback funtion returned
     _ = gl.glfwSetErrorCallback(errorCallback);
 
+    // Init glfw
     if (gl.glfwInit() == gl.GL_FALSE) {
         errorExit("glfwInit failed\n");
     }
     defer gl.glfwTerminate();
+    gl.glfwWindowHint(gl.GLFW_CONTEXT_VERSION_MAJOR, 3);
+    gl.glfwWindowHint(gl.GLFW_CONTEXT_VERSION_MINOR, 2);
 
-    var window = gl.glfwCreateWindow(640, 480, c"My Title", null, null) orelse {
+    // Create a window
+    var width: gl.GLint = 640;
+    var height: gl.GLint = 480;
+    var window = gl.glfwCreateWindow(width, height, c"My Title", null, null) orelse {
         errorExit("glfwCreateWindow failed\n");
     };
     defer gl.glfwDestroyWindow(window);
 
-    gl.glfwWindowHint(gl.GLFW_CONTEXT_VERSION_MAJOR, 3);
-    gl.glfwWindowHint(gl.GLFW_CONTEXT_VERSION_MINOR, 2);
-
-    // Ignore the previous callback funtion returned, we know it'll be null
+    // Setup input event call backs, ignore previous values
     _ = gl.glfwSetWindowCloseCallback(window, windowCloseCallback);
-
-    // Ignore the previous callback funtion returned, we know it'll be null
+    _ = gl.glfwSetWindowPosCallback(window, windowPosCallback);
     _ = gl.glfwSetKeyCallback(window, keyCallback);
+    _ = gl.glfwSetCursorEnterCallback(window, cursorEnterCallback);
+    _ = gl.glfwSetCursorPosCallback(window, cursorPosCallback);
+    _ = gl.glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
+    // Make the window context current and setup swap interval
     gl.glfwMakeContextCurrent(window);
+    gl.glfwSwapInterval(1);
 
-    var width: c_int = undefined;
-    var height: c_int = undefined;
-    gl.glfwGetFramebufferSize(window, ptr(&width), ptr(&height));
-    warn("main: framebuffer width={} height={}\n", width, height);
-
-    // Texture properties after initialization
-    const texture_min: gl.GLuint = gl.GL_TEXTURE0;
-    const texture_max: gl.GLuint = gl.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS;
-    const texture_count: gl.GLuint = texture_max - texture_min;
-    assert(texture_count >= 32);
-    assert(getActiveTexture() == texture_min);
-
-    // What is the current active texture and what is the min/max/count
-    warn("Current: active texture={} min={} max={} count={}\n",
-        getActiveTexture(), texture_min, texture_max, texture_count);
-
-    // Allocate two pixel buffers and associate them with a texture
+    // Allocate a pixel buffer
     var num_pixels: usize = @intCast(usize, width * height);
-    var pixels: [2][]u8 = undefined;
-    pixels[0] = try pAllocator.alignedAlloc(u8, 16, num_pixels * 4); // Fails if alignment > 16, Why?
-    pixels[1] = try pAllocator.alignedAlloc(u8, 16, num_pixels * 4);
-    defer pAllocator.free(pixels[0]);
-    defer pAllocator.free(pixels[1]);
+    var pixels: []u8 = undefined;
+    pixels = try pAllocator.alignedAlloc(u8, 16, num_pixels * 3);
+    defer pAllocator.free(pixels);
 
-    // Array of textures
-    var textures: [2] gl.GLuint = undefined;
+    // Clear the pixels
+    for (pixels) |*pixel| {
+        pixel.* = 0;
+    }
 
-    // Initialize the GL_TEXTURE0
-    textures[0] = gl.GL_TEXTURE0;
-    setActiveTexture(textures[0]);
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
-            0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[0][0]));
-    warn("texture[0]={}\n", textures[0]);
-    assert(getActiveTexture() == textures[0]);
+    // Create a texture.
+    // from https://www.programcreek.com/python/example/95549/OpenGL.GL.glTexImage2D
+    var tid: gl.GLuint = undefined;
+    gl.glGenTextures(1, ptr(&tid));
+    gl.glBindTexture(gl.GL_TEXTURE_2D, tid);
+    gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1);
+    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, width, height, 0,
+                    gl.GL_RGB, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[0]));
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR);
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
 
-    // Initialize the GL_TEXTURE1
-    textures[1] = gl.GL_TEXTURE1;
-    setActiveTexture(textures[1]);
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height,
-            0, gl.GL_RGBA8, gl.GL_UNSIGNED_BYTE, @ptrCast(*const c_void, &pixels[1][0]));
-    warn("texture[1]={}\n", textures[1]);
-    assert(getActiveTexture() == textures[1]);
-
-    // Generate a framebuffer object, fb0
+    // Generate a framebuffer object, fb0 and bind it
     var fbo: gl.GLuint = undefined;
     gl.glGenFramebuffers(1, ptr(&fbo));
     warn("frame_buffer[0]={}\n", fbo);
@@ -147,13 +149,34 @@ pub fn main() !void {
     var fbo_status = gl.glCheckFramebufferStatus(gl.GL_FRAMEBUFFER);
     warn("fb0_status={} \"{}\"\n", fbo_status, fboStatusStr(fbo_status));
 
-    //glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_TEXTURE_2D, texture, 0);
+    // Initialization
+    gl.glClearColor(0.0, 0.0, 0.0, 0.0); // black
+    gl.glEnable(gl.GL_BLEND);
+    gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA);
+    gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1);
+    gl.glViewport(0, 0, width, height);
+
+    // Keep track of the previous time
+    var prev_time = gl.glfwGetTime();
 
     while (gl.glfwWindowShouldClose(window) == gl.GL_FALSE) {
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT | gl.GL_STENCIL_BUFFER_BIT);
+
+        // Compute elapsed and prev_time
+        const now_time = gl.glfwGetTime();
+        const elapsed = now_time - prev_time;
+        prev_time = now_time;
+
+        // Change all pixels on each frame.
+        for (pixels) |*pixel| {
+            pixel.* +%= 1;
+        }
+
         // Dislay the "current" buffer for the remaining glfwSwapInterval.
         // See https://www.glfw.org/docs/3.0/window.html#window_swap for more info.
         gl.glfwSwapBuffers(window);
 
+        // Check for events
         gl.glfwPollEvents();
         //warn(".");
     }
