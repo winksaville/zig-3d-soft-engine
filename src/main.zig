@@ -150,6 +150,11 @@ pub fn main() !void {
     //glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_TEXTURE_2D, texture, 0);
 
     while (gl.glfwWindowShouldClose(window) == gl.GL_FALSE) {
+        // Dislay the "current" buffer for the remaining glfwSwapInterval.
+        // See https://www.glfw.org/docs/3.0/window.html#window_swap for more info.
+        gl.glfwSwapBuffers(window);
+
         gl.glfwPollEvents();
+        //warn(".");
     }
 }
