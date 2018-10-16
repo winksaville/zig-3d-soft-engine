@@ -1,0 +1,3 @@
+[submodule "modules/zig-sdl2"]
+	path = modules/zig-sdl2
+	url = git@github.com:tiehuis/zig-sdl2
