@@ -2,6 +2,41 @@ const std = @import("std");
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
+const EventResult = enum {
+    Continue,
+    Quit,
+};
+
+fn handleKeyEvent(et: u32, key: gl.SDL_KeyboardEvent) EventResult {
+    warn("handleKeyEvent: et={} key={}\n", et, key);
+    var result: EventResult = EventResult.Continue;
+    switch (et) {
+        gl.SDL_KEYUP => {
+            if (key.keysym.sym == gl.SDLK_ESCAPE) {
+                result = EventResult.Quit;
+            }
+        },
+        else => {},
+    }
+    return result;
+}
+
+fn handleEvent(event: gl.SDL_Event) EventResult {
+    var result: EventResult = EventResult.Continue;
+    switch (event.type) {
+        gl.SDL_QUIT => {
+            warn("SDL_QUIT\n");
+            result = EventResult.Quit;
+        },
+        gl.SDL_KEYUP,
+        gl.SDL_KEYDOWN => |et| {
+            result = handleKeyEvent(et, event.key);
+        },
+        else => {}
+    }
+    return result;
+}
+
 pub fn main() u8 {
     if (gl.SDL_Init(gl.SDL_INIT_VIDEO | gl.SDL_INIT_AUDIO) != 0) {
         gl.SDL_Log(c"failed to initialized SDL\n");
@@ -36,14 +71,7 @@ pub fn main() u8 {
         // One event per loop for now, later limit the time?
         var event: gl.SDL_Event = undefined;
         if (gl.SDL_PollEvent(&event) != 0) {
-            switch (event.type) {
-                gl.SDL_QUIT => {
-                    warn("SDL_QUIT\n");
-                    quit = true;
-                    break;
-                },
-                else => {}
-            }
+            quit = handleEvent(event) == EventResult.Quit;
         }
 
         _ = gl.SDL_SetRenderDrawColor(renderer, 0, 64, 128, 255);
