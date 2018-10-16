@@ -80,7 +80,7 @@ fn fboStatusStr(fbo_status: gl.GLuint) []const u8 {
     return fbo_status_str;
 }
 
-pub fn main() void {
+pub fn main() !void {
     warn("main:+\n");
     defer warn("main:-\n");
 
