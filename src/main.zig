@@ -1,3 +1,5 @@
+const std = @import("std");
+const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
 pub fn main() u8 {
@@ -19,18 +21,33 @@ pub fn main() u8 {
 
     gl.SDL_SetWindowTitle(window, c"zig-sdl");
 
-    _ = gl.SDL_SetRenderDrawColor(renderer, 0, 64, 128, 255);
-    _ = gl.SDL_RenderClear(renderer);
+    var quit = false;
+    while (!quit) {
+        // One event per loop for now, later limit the time?
+        var event: gl.SDL_Event = undefined;
+        if (gl.SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
+                gl.SDL_QUIT => {
+                    warn("SDL_QUIT\n");
+                    quit = true;
+                    break;
+                },
+                else => {}
+            }
+        }
 
-    const r1 = gl.SDL_Rect{ .x = 10, .y = 10, .w = 10, .h = 10 };
-    const r2 = gl.SDL_Rect{ .x = 40, .y = 10, .w = 10, .h = 10 };
-    var rects = []gl.SDL_Rect{ r1, r2 };
+        _ = gl.SDL_SetRenderDrawColor(renderer, 0, 64, 128, 255);
+        _ = gl.SDL_RenderClear(renderer);
 
-    _ = gl.SDL_SetRenderDrawColor(renderer, 0, 128, 128, 255);
-    _ = gl.SDL_RenderFillRects(renderer, @ptrCast([*]gl.SDL_Rect, &rects[0]), 2);
+        const r1 = gl.SDL_Rect{ .x = 10, .y = 10, .w = 10, .h = 10 };
+        const r2 = gl.SDL_Rect{ .x = 40, .y = 10, .w = 10, .h = 10 };
+        var rects = []gl.SDL_Rect{ r1, r2 };
 
-    _ = gl.SDL_RenderPresent(renderer);
+        _ = gl.SDL_SetRenderDrawColor(renderer, 0, 128, 128, 255);
+        _ = gl.SDL_RenderFillRects(renderer, @ptrCast([*]gl.SDL_Rect, &rects[0]), 2);
 
-    gl.SDL_Delay(3000);
+        _ = gl.SDL_RenderPresent(renderer);
+    }
+
     return 0;
 }
