@@ -19,6 +19,16 @@ pub fn main() u8 {
     defer gl.SDL_DestroyRenderer(renderer);
     defer gl.SDL_DestroyWindow(window);
 
+    // This reduces CPU utilization but now dragging window is jerky.
+    // Another possible option was:
+    //   `var r = gl.SDL_SetHint(gl.SDL_HINT_RENDER_VSYNC, c"1");`
+    // But that didn't work on my system, CPU utilization was still 100%
+    // although dragging the window was fine.
+    var r = gl.SDL_GL_SetSwapInterval(1);
+    if (r != 0) {
+        warn("SetSwapInterval(1)={} cpu utilization may be high!\n", r);
+    }
+
     gl.SDL_SetWindowTitle(window, c"zig-sdl");
 
     var quit = false;
