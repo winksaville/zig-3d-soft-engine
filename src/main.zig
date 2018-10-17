@@ -1,6 +1,15 @@
+const builtin = @import("builtin");
 const std = @import("std");
+const mem = std.mem;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
+
+const glSDL_WINDOWPOS_UNDEFINED_MASK: c_int = 0x1FFF0000;
+const glSDL_WINDOWPOS_UNDEFINED: c_int = glSDL_WINDOWPOS_UNDEFINED_MASK | 0;
+
+fn glSDL_WindowPosIsUndefined(pos: c_int) bool {
+    return (pos & glSDL_WINDOWPOS_UNDEFINED_MASK) == glSDL_WINDOWPOS_UNDEFINED_MASK;
+}
 
 const EventResult = enum {
     Continue,
@@ -38,20 +47,26 @@ fn handleEvent(event: gl.SDL_Event) EventResult {
 }
 
 pub fn main() u8 {
+    // Initialize SDL
     if (gl.SDL_Init(gl.SDL_INIT_VIDEO | gl.SDL_INIT_AUDIO) != 0) {
         gl.SDL_Log(c"failed to initialized SDL\n");
         return 1;
     }
     defer gl.SDL_Quit();
 
-    var renderer: *gl.SDL_Renderer = undefined;
-    var window: *gl.SDL_Window = undefined;
+    // Create Window
+    var x_pos: c_int = glSDL_WINDOWPOS_UNDEFINED;
+    var y_pos: c_int = glSDL_WINDOWPOS_UNDEFINED;
+    var width: c_int = 640;
+    var height: c_int = 480;
 
-    if (gl.SDL_CreateWindowAndRenderer(640, 480, gl.SDL_WINDOW_SHOWN, &window, &renderer) != 0) {
-        gl.SDL_Log(c"failed to initialize window and renderer\n");
-        return 1;
-    }
-    defer gl.SDL_DestroyRenderer(renderer);
+    var window_flags: u32 = 0;
+    var window: *gl.SDL_Window = gl.SDL_CreateWindow(
+            c"zig-3d-soft-engine", x_pos, y_pos, width, height, window_flags
+        ) orelse {
+            warn("Could not create Window error: {}\n", gl.SDL_GetError());
+            return 1;
+        };
     defer gl.SDL_DestroyWindow(window);
 
     // This reduces CPU utilization but now dragging window is jerky.
@@ -64,26 +79,62 @@ pub fn main() u8 {
         warn("SetSwapInterval(1)={} cpu utilization may be high!\n", r);
     }
 
-    gl.SDL_SetWindowTitle(window, c"zig-sdl");
+    // Create Renderer
+    var renderer_flags: u32 = 0;
+    var renderer: *gl.SDL_Renderer = gl.SDL_CreateRenderer(window, -1, renderer_flags
+        ) orelse {
+            warn("Could not create Renderer error: {}\n", gl.SDL_GetError());
+            return 1;
+        };
+    defer gl.SDL_DestroyRenderer(renderer);
+
+    // Create Texture
+    var texture: *gl.SDL_Texture = gl.SDL_CreateTexture(renderer,
+        gl.SDL_PIXELFORMAT_ARGB8888, gl.SDL_TESTUREACCESS_STATIC, width, height
+        ) orelse {
+            warn("Could not create Texture error: {}\n", gl.SDL_GetError());
+            return 1;
+        };
+
+    // Create Pixel buffer
+    var bg_color = 0xffffffff; // white
+    var fg_color = 0x00000000; // black
+    var pixels: [width * height]u32 = undefined;
+    mem.WriteInt(pixels[0..], bg_color, builtin.endian);
 
     var quit = false;
+    var leftMouseButtonDown = false;
     while (!quit) {
         // One event per loop for now, later limit the time?
         var event: gl.SDL_Event = undefined;
         if (gl.SDL_PollEvent(&event) != 0) {
             quit = handleEvent(event) == EventResult.Quit;
+            if (!quit) {
+                switch (event.type) {
+                    gl.SDL_MOUSEBUTTONUP => {
+                        if (event.button.button == gl.SDL_BUTTON_LEFT) {
+                            leftMouseButtonDown = false;
+                        }
+                    },
+                    gl.SDL_MOUSEBUTTONDOWN => {
+                        if (event.button.button == gl.SDL_BUTTON_LEFT) {
+                            leftMouseButtonDown = true;
+                        }
+                    },
+                    gl.SDL_MOUSEMOTION => {
+                        if (leftMouseButtonDown) {
+                            var mouse_x: usize = @intCast(usize, event.motion.x);
+                            var mouse_y: usize = @intCast(usize, event.motion.y);
+                            pixels[(mouse_x * width) + mouse_y] = fg_color;
+                        }
+                    },
+                    else => {}
+                }
+            }
         }
 
-        _ = gl.SDL_SetRenderDrawColor(renderer, 0, 64, 128, 255);
         _ = gl.SDL_RenderClear(renderer);
-
-        const r1 = gl.SDL_Rect{ .x = 10, .y = 10, .w = 10, .h = 10 };
-        const r2 = gl.SDL_Rect{ .x = 40, .y = 10, .w = 10, .h = 10 };
-        var rects = []gl.SDL_Rect{ r1, r2 };
-
-        _ = gl.SDL_SetRenderDrawColor(renderer, 0, 128, 128, 255);
-        _ = gl.SDL_RenderFillRects(renderer, @ptrCast([*]gl.SDL_Rect, &rects[0]), 2);
-
+        _ = gl.SDL_RenderCopy(renderer, texture, null, null);
         _ = gl.SDL_RenderPresent(renderer);
     }
 
