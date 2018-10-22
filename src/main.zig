@@ -5,7 +5,7 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
-const EventResult = enum {
+const EventResult = enum.{
     Continue,
     Quit,
 };
@@ -31,11 +31,10 @@ fn handleEvent(event: gl.SDL_Event) EventResult {
             warn("SDL_QUIT\n");
             result = EventResult.Quit;
         },
-        gl.SDL_KEYUP,
-        gl.SDL_KEYDOWN => |et| {
+        gl.SDL_KEYUP, gl.SDL_KEYDOWN => |et| {
             result = handleKeyEvent(et, event.key);
         },
-        else => {}
+        else => {},
     }
     return result;
 }
@@ -55,12 +54,10 @@ pub fn main() u8 {
     const height: c_int = 480;
 
     var window_flags: u32 = 0;
-    var window: *gl.SDL_Window = gl.SDL_CreateWindow(
-            c"zig-3d-soft-engine", x_pos, y_pos, width, height, window_flags
-        ) orelse {
-            warn("Could not create Window error: {}\n", gl.SDL_GetError());
-            return 1;
-        };
+    var window: *gl.SDL_Window = gl.SDL_CreateWindow(c"zig-3d-soft-engine", x_pos, y_pos, width, height, window_flags) orelse {
+        warn("Could not create Window error: {}\n", gl.SDL_GetError());
+        return 1;
+    };
     defer gl.SDL_DestroyWindow(window);
 
     // This reduces CPU utilization but now dragging window is jerky
@@ -74,20 +71,17 @@ pub fn main() u8 {
 
     // Create Renderer
     var renderer_flags: u32 = 0;
-    var renderer: *gl.SDL_Renderer = gl.SDL_CreateRenderer(window, -1, renderer_flags
-        ) orelse {
-            warn("Could not create Renderer error: {}\n", gl.SDL_GetError());
-            return 1;
-        };
+    var renderer: *gl.SDL_Renderer = gl.SDL_CreateRenderer(window, -1, renderer_flags) orelse {
+        warn("Could not create Renderer error: {}\n", gl.SDL_GetError());
+        return 1;
+    };
     defer gl.SDL_DestroyRenderer(renderer);
 
     // Create Texture
-    var texture: *gl.SDL_Texture = gl.SDL_CreateTexture(renderer,
-        gl.SDL_PIXELFORMAT_ARGB8888, gl.SDL_TEXTUREACCESS_STATIC, width, height
-        ) orelse {
-            warn("Could not create Texture error: {}\n", gl.SDL_GetError());
-            return 1;
-        };
+    var texture: *gl.SDL_Texture = gl.SDL_CreateTexture(renderer, gl.SDL_PIXELFORMAT_ARGB8888, gl.SDL_TEXTUREACCESS_STATIC, width, height) orelse {
+        warn("Could not create Texture error: {}\n", gl.SDL_GetError());
+        return 1;
+    };
 
     // Create Pixel buffer
     var bg_color: u32 = 0xffffffff; // white
@@ -124,7 +118,7 @@ pub fn main() u8 {
                             pixels[(mouse_y * @intCast(usize, width)) + mouse_x] = fg_color;
                         }
                     },
-                    else => {}
+                    else => {},
                 }
             }
         }
