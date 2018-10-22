@@ -65,7 +65,7 @@ const Thing = struct.{
     other_count: usize,
 };
 
-test "inputEvent" {
+test "inputEvents" {
     var thing = Thing.{
         .key_count = 0,
         .mouse_count = 0,
