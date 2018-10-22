@@ -291,7 +291,7 @@ test "math3d.mult" {
         []f32.{ 0.572904, 0.268761, 0.422673, 0.614428 },
         []f32.{ 1.48683, 1.15203, 1.89932, 2.05661 },
     } };
-    const tmp = m1.mult(m2);
+    const tmp = m1.mult(&m2);
     assert_matrix_eq(tmp, answer);
 }
 
@@ -313,6 +313,6 @@ test "math3d.rotate" {
         []f32.{ 1.06829, 0.530801, 0.447396, 0.916195 },
     } };
 
-    const actual = m1.rotate(angle, axis);
+    const actual = m1.rotate(angle, &axis);
     assert_matrix_eq(actual, expected);
 }
