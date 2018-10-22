@@ -127,6 +127,7 @@ pub fn main() u8 {
         warn("Could not create Texture error: {}\n", gl.SDL_GetError());
         return 1;
     };
+    defer gl.SDL_DestroyTexture(texture);
 
     // Create Pixel buffer
     for (ws.pixels) |*pixel| {
