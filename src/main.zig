@@ -59,18 +59,6 @@ pub fn main() u8 {
         .leftMouseButtonDown = false,
         .width = 640,
         .height = 480,
-        //Causes if `pub fn main() !u8 {`
-        // $ zig build
-        // /home/wink/opt/lib/zig/std/special/bootstrap.zig:102:25: error: expression value is ignored
-        //             root.main() catch |err| {
-        //                         ^
-        // The following command exited with error code 1:
-        // /home/wink/opt/bin/zig build-exe /home/wink/prgs/ziglang/zig-3d-soft-engine/src/main.zig --cache-dir /home/wink/prgs/ziglang/zig-3d-soft-engine/zig-cache --output /home/wink/prgs/ziglang/zig-3d-soft-engine/3d-soft-engine --name 3d-soft-engine --library c --library SDL2 
-        //
-        // Build failed. The following command failed:
-        // /home/wink/.local/share/zig/stage1/artifact/BNW8ocIX8xGSxE3uxQEW-66paoiuuMbejllWbAQOINp4HYZJL6HN_QN8cWrgVWon/build /home/wink/opt/bin/zig /home/wink/prgs/ziglang/zig-3d-soft-engine /home/wink/prgs/ziglang/zig-3d-soft-engine/zig-cache
-        //
-        //.pixels = try pAllocator.alloc(u32, 640 * 480),
         .pixels = pAllocator.alloc(u32, 640 * 480) catch |e| {
             warn("Could not allocate pixels: {}\n", e);
             return 1;
