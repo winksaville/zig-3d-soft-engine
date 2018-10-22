@@ -6,47 +6,62 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
-const EventResult = enum.{
-    Continue,
-    Quit,
-};
-
-fn handleKeyEvent(et: u32, key: gl.SDL_KeyboardEvent) EventResult {
-    warn("handleKeyEvent: et={} key={}\n", et, key);
-    var result: EventResult = EventResult.Continue;
-    switch (et) {
-        gl.SDL_KEYUP => {
-            if (key.keysym.sym == gl.SDLK_ESCAPE) {
-                result = EventResult.Quit;
-            }
-        },
-        else => {},
-    }
-    return result;
-}
-
-fn handleEvent(event: gl.SDL_Event) EventResult {
-    var result: EventResult = EventResult.Continue;
-    switch (event.type) {
-        gl.SDL_QUIT => {
-            warn("SDL_QUIT\n");
-            result = EventResult.Quit;
-        },
-        gl.SDL_KEYUP, gl.SDL_KEYDOWN => |et| {
-            result = handleKeyEvent(et, event.key);
-        },
-        else => {},
-    }
-    return result;
-}
+const ie = @import("input_events.zig");
 
 const WindowState = struct.{
     quit: bool,
     leftMouseButtonDown: bool,
+    ei: ie.EventInterface,
+    bg_color: u32,
+    fg_color: u32,
     width: c_int,
     height: c_int,
     pixels: []u32,
 };
+
+fn handleKeyEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
+    var pWs = @intToPtr(*WindowState, @ptrToInt(pThing));
+    switch (event.type) {
+        gl.SDL_KEYUP => {
+            if (event.key.keysym.sym == gl.SDLK_ESCAPE) {
+                pWs.quit = true;
+                return ie.EventResult.Quit;
+            }
+        },
+        else => {},
+    }
+    return ie.EventResult.Continue;
+}
+
+fn handleMouseEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
+    var pWs = @intToPtr(*WindowState, @ptrToInt(pThing));
+    switch (event.type) {
+        gl.SDL_MOUSEBUTTONUP => {
+            assert(gl.SDL_BUTTON_LMASK == 1);
+            if (event.button.button == gl.SDL_BUTTON_LEFT) {
+                pWs.leftMouseButtonDown = false;
+            }
+        },
+        gl.SDL_MOUSEBUTTONDOWN => {
+            if (event.button.button == gl.SDL_BUTTON_LEFT) {
+                pWs.leftMouseButtonDown = true;
+            }
+        },
+        gl.SDL_MOUSEMOTION => {
+            if (pWs.leftMouseButtonDown) {
+                var mouse_x: usize = @intCast(usize, event.motion.x);
+                var mouse_y: usize = @intCast(usize, event.motion.y);
+                pWs.pixels[(mouse_y * @intCast(usize, pWs.width)) + mouse_x] = pWs.fg_color;
+            }
+        },
+        else => {},
+    }
+    return ie.EventResult.Continue;
+}
+
+fn handleOtherEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
+    return ie.EventResult.Continue;
+}
 
 pub fn main() u8 {
     var direct_allocator = std.heap.DirectAllocator.init();
@@ -57,6 +72,14 @@ pub fn main() u8 {
     var ws = WindowState.{
         .quit = false,
         .leftMouseButtonDown = false,
+        .ei = ie.EventInterface.{
+            .event = undefined,
+            .handleKeyEvent = handleKeyEvent,
+            .handleMouseEvent = handleMouseEvent,
+            .handleOtherEvent = handleOtherEvent,
+        },
+        .bg_color = 0xffffffff, // white
+        .fg_color = 0x00000000, // black
         .width = 640,
         .height = 480,
         .pixels = pAllocator.alloc(u32, 640 * 480) catch |e| {
@@ -106,39 +129,22 @@ pub fn main() u8 {
     };
 
     // Create Pixel buffer
-    var bg_color: u32 = 0xffffffff; // white
-    var fg_color: u32 = 0x00000000; // black
     for (ws.pixels) |*pixel| {
-        pixel.* = bg_color;
+        pixel.* = ws.bg_color;
     }
 
     while (!ws.quit) {
         // Process all events
-        var event: gl.SDL_Event = undefined;
-        while (gl.SDL_PollEvent(&event) != 0) {
-            ws.quit = handleEvent(event) == EventResult.Quit;
-            if (!ws.quit) {
-                switch (event.type) {
-                    gl.SDL_MOUSEBUTTONUP => {
-                        assert(gl.SDL_BUTTON_LMASK == 1);
-                        if (event.button.button == gl.SDL_BUTTON_LEFT) {
-                            ws.leftMouseButtonDown = false;
-                        }
-                    },
-                    gl.SDL_MOUSEBUTTONDOWN => {
-                        if (event.button.button == gl.SDL_BUTTON_LEFT) {
-                            ws.leftMouseButtonDown = true;
-                        }
-                    },
-                    gl.SDL_MOUSEMOTION => {
-                        if (ws.leftMouseButtonDown) {
-                            var mouse_x: usize = @intCast(usize, event.motion.x);
-                            var mouse_y: usize = @intCast(usize, event.motion.y);
-                            ws.pixels[(mouse_y * @intCast(usize, ws.width)) + mouse_x] = fg_color;
-                        }
-                    },
-                    else => {},
-                }
+        noEvents: while (true) {
+            switch (ie.pollInputEvent(&ws, &ws.ei)) {
+                ie.EventResult.NoEvents => {
+                    break :noEvents;
+                },
+                ie.EventResult.Quit => {
+                    ws.quit = true;
+                    break :noEvents;
+                },
+                ie.EventResult.Continue => {},
             }
         }
 
