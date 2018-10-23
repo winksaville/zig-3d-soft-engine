@@ -104,11 +104,11 @@ pub const Window = struct. {
         return self.pixels[(y * @intCast(usize, self.width)) + x];
     }
         
-    pub fn present() void {
-        _ = gl.SDL_UpdateTexture(texture, null, @ptrCast(*const c_void, &ws.pixels[0]), ws.width * @sizeOf(u32));
-        _ = gl.SDL_RenderClear(renderer);
-        _ = gl.SDL_RenderCopy(renderer, texture, null, null);
-        _ = gl.SDL_RenderPresent(renderer);
+    pub fn present(self: *Self,) void {
+        _ = gl.SDL_UpdateTexture(self.sdl_texture, null, @ptrCast(*const c_void, &self.pixels[0]), self.width * @sizeOf(@typeOf(self.pixels[0])));
+        _ = gl.SDL_RenderClear(self.sdl_renderer);
+        _ = gl.SDL_RenderCopy(self.sdl_renderer, self.sdl_texture, null, null);
+        _ = gl.SDL_RenderPresent(self.sdl_renderer);
     }
 };
 
@@ -129,5 +129,5 @@ test "Window" {
     window.putPixel(0, 0, 0x01020304);
     assert(window.getPixel(0, 0) == 0x01020304);
 
-    
+    window.present();
 }
