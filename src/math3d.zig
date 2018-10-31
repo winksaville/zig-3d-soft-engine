@@ -181,6 +181,38 @@ pub fn perspectiveFovRh(fov: f32, aspect: f32, znear: f32, zfar: f32) Mat4x4 {
     return rmo;
 }
 
+/// Builds a Yaw Pitch Roll Rotation matrix from x, y, z angles in radians.
+pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
+    const rz = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ math.cos(z), -math.sin(z), 0.0, 0.0 },
+        []f32.{ math.sin(z), math.cos(z), 0.0, 0.0 },
+        []f32.{ 0.0, 0.0, 1.0, 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    //printMat4x4("rotationYawPitchRoll rz:\n", &rz);
+
+    const rx = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ 1.0, 0.0, 0.0, 0.0 },
+        []f32.{ 0.0, math.cos(x), -math.sin(x), 0.0 },
+        []f32.{ 0.0, math.sin(x), math.cos(x), 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    //printMat4x4("rotationYawPitchRoll rx:\n", &rx);
+
+    const ry = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ math.cos(y), 0.0, -math.sin(y), 0.0 },
+        []f32.{ 0.0, 1.0, 0.0, 0.0 },
+        []f32.{ math.sin(y), 0.0, math.cos(y), 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    //printMat4x4("rotationYawPitchRoll ry:\n", &ry);
+
+    var m = rz.mult(&ry.mult(&rx));
+    //printMat4x4("rotationYawPitchRoll m:\n", &m);
+
+    return m;
+}
+
 pub const Vec2 = struct.{
     data: [2]f32,
 
@@ -422,21 +454,6 @@ const warn = std.debug.warn;
 //    assert_matrix_eq(answer, expected);
 //}
 
-test "math3d.ortho" {
-    const m = mat4x4_ortho(0.840188, 0.394383, 0.783099, 0.79844);
-
-    const expected = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ -4.48627, 0.0, 0.0, 2.76931 },
-        []f32.{ 0.0, 130.36974, 0.0, -103.09241 },
-        []f32.{ 0.0, 0.0, -1.0, 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
-    } };
-    printMat4x4("\nm:\n", &m);
-    printMat4x4("expected:\n", &expected);
-
-    assert_matrix_eq(m, expected);
-}
-
 fn assert_matrix_eq(left: Mat4x4, right: Mat4x4) void {
     feq.assert_f_eq(left.data[0][0], right.data[0][0]);
     feq.assert_f_eq(left.data[0][1], right.data[0][1]);
@@ -457,6 +474,21 @@ fn assert_matrix_eq(left: Mat4x4, right: Mat4x4) void {
     feq.assert_f_eq(left.data[3][1], right.data[3][1]);
     feq.assert_f_eq(left.data[3][2], right.data[3][2]);
     feq.assert_f_eq(left.data[3][3], right.data[3][3]);
+}
+
+test "math3d.ortho" {
+    const m = mat4x4_ortho(0.840188, 0.394383, 0.783099, 0.79844);
+
+    const expected = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ -4.48627, 0.0, 0.0, 2.76931 },
+        []f32.{ 0.0, 130.36974, 0.0, -103.09241 },
+        []f32.{ 0.0, 0.0, -1.0, 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    printMat4x4("\nm:\n", &m);
+    printMat4x4("expected:\n", &expected);
+
+    assert_matrix_eq(m, expected);
 }
 
 test "math3d.mult" {
@@ -679,4 +711,26 @@ test "math3d.perspectiveFovRh" {
         []f32.{ 0.0000000, 0.0000000, -0.0101010, 0.0000000 },
     } };
     assert_matrix_eq(projection_matrix, expected);
+}
+
+test "math3d.rotationYawPitchRoll" {
+    warn("\n");
+    const deg10rad: f32 = 0.174522;
+    var m_zero = rotationYawPitchRoll(0, 0, 0);
+    printMat4x4("m_zero:\n", &m_zero);
+    var m_x_pos_ten_deg = rotationYawPitchRoll(deg10rad, 0, 0);
+    printMat4x4("m_x_pos_ten_deg:\n", &m_x_pos_ten_deg);
+    var m_x_neg_ten_deg = rotationYawPitchRoll(-deg10rad, 0, 0);
+    printMat4x4("m_x_neg_ten_deg:\n", &m_x_neg_ten_deg);
+
+    warn("\n");
+    var x = m_x_pos_ten_deg.mult(&m_x_neg_ten_deg);
+    printMat4x4("x = pos * neg:\n", &x);
+    assert_matrix_eq(m_zero, x);
+    //var m_x_pos_ten = m_zero.mult(&m_x_pos_ten_deg);
+    //assert_matrix_eq(m_x_pos_ten, m_x_pos_ten_deg);
+    //var m_x_neg_ten = m_x_pos_ten.mult(&m_x_neg_ten_deg);
+    //assert_matrix_eq(m_zero, m_x_neg_ten);
+    //var m_ten = rotationYawPitchRoll(deg10rad, deg10rad, deg10rad);
+    //printMat4x4("\nm_ten:\n", &m_ten);
 }
