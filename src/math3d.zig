@@ -5,7 +5,7 @@
 const std = @import("std");
 const math = std.math;
 const assert = std.debug.assert;
-const feq = @import("float-eq.zig");
+const approxEql = @import("../modules/zig-approxeql/approxeql.zig").approxEql;
 
 pub const Mat4x4 = struct.{
     data: [4][4]f32,
@@ -455,32 +455,33 @@ const warn = std.debug.warn;
 //}
 
 fn assert_matrix_eq(left: Mat4x4, right: Mat4x4) void {
-    feq.assert_f_eq(left.data[0][0], right.data[0][0]);
-    feq.assert_f_eq(left.data[0][1], right.data[0][1]);
-    feq.assert_f_eq(left.data[0][2], right.data[0][2]);
-    feq.assert_f_eq(left.data[0][3], right.data[0][3]);
+    const digits = 7;
+    assert(approxEql(left.data[0][0], right.data[0][0], digits));
+    assert(approxEql(left.data[0][1], right.data[0][1], digits));
+    assert(approxEql(left.data[0][2], right.data[0][2], digits));
+    assert(approxEql(left.data[0][3], right.data[0][3], digits));
 
-    feq.assert_f_eq(left.data[1][0], right.data[1][0]);
-    feq.assert_f_eq(left.data[1][1], right.data[1][1]);
-    feq.assert_f_eq(left.data[1][2], right.data[1][2]);
-    feq.assert_f_eq(left.data[1][3], right.data[1][3]);
+    assert(approxEql(left.data[1][0], right.data[1][0], digits));
+    assert(approxEql(left.data[1][1], right.data[1][1], digits));
+    assert(approxEql(left.data[1][2], right.data[1][2], digits));
+    assert(approxEql(left.data[1][3], right.data[1][3], digits));
 
-    feq.assert_f_eq(left.data[2][0], right.data[2][0]);
-    feq.assert_f_eq(left.data[2][1], right.data[2][1]);
-    feq.assert_f_eq(left.data[2][2], right.data[2][2]);
-    feq.assert_f_eq(left.data[2][3], right.data[2][3]);
+    assert(approxEql(left.data[2][0], right.data[2][0], digits));
+    assert(approxEql(left.data[2][1], right.data[2][1], digits));
+    assert(approxEql(left.data[2][2], right.data[2][2], digits));
+    assert(approxEql(left.data[2][3], right.data[2][3], digits));
 
-    feq.assert_f_eq(left.data[3][0], right.data[3][0]);
-    feq.assert_f_eq(left.data[3][1], right.data[3][1]);
-    feq.assert_f_eq(left.data[3][2], right.data[3][2]);
-    feq.assert_f_eq(left.data[3][3], right.data[3][3]);
+    assert(approxEql(left.data[3][0], right.data[3][0], digits));
+    assert(approxEql(left.data[3][1], right.data[3][1], digits));
+    assert(approxEql(left.data[3][2], right.data[3][2], digits));
+    assert(approxEql(left.data[3][3], right.data[3][3], digits));
 }
 
 test "math3d.ortho" {
     const m = mat4x4_ortho(0.840188, 0.394383, 0.783099, 0.79844);
 
     const expected = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ -4.48627, 0.0, 0.0, 2.76931 },
+        []f32.{ -4.4862661, 0.0, 0.0, 2.7693071 },
         []f32.{ 0.0, 130.36974, 0.0, -103.09241 },
         []f32.{ 0.0, 0.0, -1.0, 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
@@ -505,12 +506,13 @@ test "math3d.mult" {
         []f32.{ 0.364784, 0.513401, 0.95223, 0.916195 },
     } };
     const answer = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.44879, 0.782479, 1.38385, 1.70378 },
-        []f32.{ 0.566593, 0.543299, 0.925461, 1.02269 },
-        []f32.{ 0.572904, 0.268761, 0.422673, 0.614428 },
-        []f32.{ 1.48683, 1.15203, 1.89932, 2.05661 },
+        []f32.{ 1.4487857, 0.7824790, 1.3838549, 1.7037790 },
+        []f32.{ 0.5665933, 0.5432989, 0.9254619, 1.0226922 },
+        []f32.{ 0.5729035, 0.2687608, 0.4226734, 0.6144274 },
+        []f32.{ 1.4868317, 1.1520255, 1.8993208, 2.0566108 },
     } };
     const tmp = m1.mult(&m2);
+    printMat4x4("\ntmp:\n", &tmp);
     assert_matrix_eq(tmp, answer);
 }
 
@@ -526,10 +528,10 @@ test "math3d.rotate" {
     const axis = vec3(0.606969, 0.141603, 0.717297);
 
     const expected = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.17015, 0.488019, 0.0821917, 0.364784 },
-        []f32.{ 0.444151, 0.212659, 0.508874, 0.513401 },
-        []f32.{ 0.851739, 0.126319, 0.460555, 0.95223 },
-        []f32.{ 1.06829, 0.530801, 0.447396, 0.916195 },
+        []f32.{ 1.1701527, 0.4880189, 0.0821917, 0.3647840 },
+        []f32.{ 0.4441513, 0.2126591, 0.5088741, 0.5134010 },
+        []f32.{ 0.8517390, 0.1263189, 0.4605548, 0.9522300 },
+        []f32.{ 1.0682929, 0.5308014, 0.4473957, 0.9161950 },
     } };
     printMat4x4("\nexpected:\n", &expected);
 
