@@ -2,3 +2,6 @@
 	path = modules/zig-sdl2
 	url = git@github.com:winksaville/zig-sdl2
 	branch = add-to-mouse-render-video
+[submodule "modules/zig-approxeql"]
+	path = modules/zig-approxeql
+	url = git@github.com:winksaville/zig-approxeql.git
