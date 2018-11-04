@@ -213,6 +213,39 @@ pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
     return m;
 }
 
+/// Builds a Yaw Pitch Roll Rotation matrix from x, y, z angles in radians.
+/// With the x, y, z applied in the opposite order then rotationYawPitchRoll.
+pub fn rotationYawPitchRollNeg(x: f32, y: f32, z: f32) Mat4x4 {
+    const rz = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ math.cos(z), -math.sin(z), 0.0, 0.0 },
+        []f32.{ math.sin(z), math.cos(z), 0.0, 0.0 },
+        []f32.{ 0.0, 0.0, 1.0, 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    //printMat4x4("rotationYawPitchRollNeg rz:\n", &rz);
+
+    const rx = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ 1.0, 0.0, 0.0, 0.0 },
+        []f32.{ 0.0, math.cos(x), -math.sin(x), 0.0 },
+        []f32.{ 0.0, math.sin(x), math.cos(x), 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    //printMat4x4("rotationYawPitchRollNeg rx:\n", &rx);
+
+    const ry = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ math.cos(y), 0.0, -math.sin(y), 0.0 },
+        []f32.{ 0.0, 1.0, 0.0, 0.0 },
+        []f32.{ math.sin(y), 0.0, math.cos(y), 0.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    //printMat4x4("rotationYawPitchRollNeg ry:\n", &ry);
+
+    var m = rx.mult(&ry.mult(&rz));
+    //printMat4x4("rotationYawPitchRollNeg m:\n", &m);
+
+    return m;
+}
+
 pub const Vec2 = struct.{
     data: [2]f32,
 
@@ -720,19 +753,68 @@ test "math3d.rotationYawPitchRoll" {
     const deg10rad: f32 = 0.174522;
     var m_zero = rotationYawPitchRoll(0, 0, 0);
     printMat4x4("m_zero:\n", &m_zero);
+
     var m_x_pos_ten_deg = rotationYawPitchRoll(deg10rad, 0, 0);
     printMat4x4("m_x_pos_ten_deg:\n", &m_x_pos_ten_deg);
     var m_x_neg_ten_deg = rotationYawPitchRoll(-deg10rad, 0, 0);
     printMat4x4("m_x_neg_ten_deg:\n", &m_x_neg_ten_deg);
-
-    warn("\n");
     var x = m_x_pos_ten_deg.mult(&m_x_neg_ten_deg);
     printMat4x4("x = pos * neg:\n", &x);
     assert_matrix_eq(m_zero, x);
-    //var m_x_pos_ten = m_zero.mult(&m_x_pos_ten_deg);
-    //assert_matrix_eq(m_x_pos_ten, m_x_pos_ten_deg);
-    //var m_x_neg_ten = m_x_pos_ten.mult(&m_x_neg_ten_deg);
-    //assert_matrix_eq(m_zero, m_x_neg_ten);
-    //var m_ten = rotationYawPitchRoll(deg10rad, deg10rad, deg10rad);
-    //printMat4x4("\nm_ten:\n", &m_ten);
+
+    warn("\n");
+    var m_y_pos_ten_deg = rotationYawPitchRoll(0, deg10rad, 0);
+    printMat4x4("m_y_pos_ten_deg:\n", &m_y_pos_ten_deg);
+    var m_y_neg_ten_deg = rotationYawPitchRoll(0, -deg10rad, 0);
+    printMat4x4("m_y_neg_ten_deg:\n", &m_y_neg_ten_deg);
+    var y = m_y_pos_ten_deg.mult(&m_y_neg_ten_deg);
+    printMat4x4("y = pos * neg:\n", &y);
+    assert_matrix_eq(m_zero, y);
+
+    warn("\n");
+    var m_z_pos_ten_deg = rotationYawPitchRoll(0, 0, deg10rad);
+    printMat4x4("m_z_pos_ten_deg:\n", &m_z_pos_ten_deg);
+    var m_z_neg_ten_deg = rotationYawPitchRoll(0, 0, -deg10rad);
+    printMat4x4("m_z_neg_ten_deg:\n", &m_z_neg_ten_deg);
+    var z = m_z_pos_ten_deg.mult(&m_z_neg_ten_deg);
+    printMat4x4("z = pos * neg:\n", &z);
+    assert_matrix_eq(m_zero, z);
+
+    warn("\n");
+    var xy_pos = m_x_pos_ten_deg.mult(&m_y_pos_ten_deg);
+    printMat4x4("xy_pos = x_pos_ten * y_pos_ten:\n", &xy_pos);
+    var a = xy_pos.mult(&m_y_neg_ten_deg);
+    printMat4x4("a = xy_pos * y_pos_ten\n", &a);
+    var b = a.mult(&m_x_neg_ten_deg);
+    printMat4x4("b = a * x_pos_ten\n", &b);
+    assert_matrix_eq(m_zero, b);
+
+    // To undo a rotationYayPitchRoll the multiplication in rotationYawPitch
+    // must be applied reverse order. So rz.mult(&ry.mult(&rx)) which is
+    //   1) r1 = ry * rx
+    //   2) r2 = rz * r1
+    // must be applied:
+    //   1) r3 = -rz * r2
+    //   2) r4 = -ry * r3
+    //   3) r5 = -rx * r4
+    warn("\n");
+    var r2 = rotationYawPitchRoll(deg10rad, deg10rad, deg10rad);
+    printMat4x4("r2:\n", &r2);
+    var r3 = m_z_neg_ten_deg.mult(&r2);
+    var r4 = m_y_neg_ten_deg.mult(&r3);
+    var r5 = m_x_neg_ten_deg.mult(&r4);
+    printMat4x4("r5:\n", &r5);
+    assert_matrix_eq(m_zero, r5);
+
+    // Here is the above as a single line both are equal to m_zero
+    r5 = m_x_neg_ten_deg.mult(&m_y_neg_ten_deg.mult(&m_z_neg_ten_deg.mult(&r2)));
+    printMat4x4("r5 one line:\n", &r5);
+    assert_matrix_eq(m_zero, r5);
+
+    // Or you can use rotationYawPitchRollNeg
+    var rneg = rotationYawPitchRollNeg(-deg10rad, -deg10rad, -deg10rad);
+    printMat4x4("rneg:\n", &rneg);
+    r5 = rneg.mult(&r2);
+    printMat4x4("r5:\n", &r5);
+    assert_matrix_eq(m_zero, r5);
 }
