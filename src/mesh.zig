@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const math = std.math;
 const math3d = @import("math3d.zig");
 
-const Mesh = struct.{
+pub const Mesh = struct.{
     const Self = @This();
 
     pub name: []const u8,

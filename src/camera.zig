@@ -4,7 +4,7 @@ const warn = std.debug.warn;
 const math = std.math;
 const math3d = @import("math3d.zig");
 
-const Camera = struct.{
+pub const Camera = struct.{
     const Self = @This();
 
     pub position: math3d.Vec3,
