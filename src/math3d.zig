@@ -334,8 +334,20 @@ pub const Vec3 = struct.{
         v.data[2] = zp;
     }
 
-    pub fn up() Vec3 {
+    pub fn unitX() Vec3 {
+        return Vec3.init(1, 0, 0);
+    }
+
+    pub fn unitY() Vec3 {
         return Vec3.init(0, 1, 0);
+    }
+
+    pub fn unitZ() Vec3 {
+        return Vec3.init(0, 0, 1);
+    }
+
+    pub fn zero() Vec3 {
+        return Vec3.init(0, 0, 0);
     }
 
     pub fn normalize(v: *const Vec3) Vec3 {
@@ -608,6 +620,21 @@ test "math3d.vec3" {
     assert(v1.y() == v2.y());
     assert(v1.z() == v2.z());
 
+    v1 = Vec3.unitX();
+    assert(v1.x() == 1);
+    assert(v1.y() == 0);
+    assert(v1.z() == 0);
+
+    v1 = Vec3.unitY();
+    assert(v1.x() == 0);
+    assert(v1.y() == 1);
+    assert(v1.z() == 0);
+
+    v1 = Vec3.unitZ();
+    assert(v1.x() == 0);
+    assert(v1.y() == 0);
+    assert(v1.z() == 1);
+
     // TODO: More tests
 }
 
@@ -718,7 +745,7 @@ fn printMat4x4(s: []const u8, m: *const Mat4x4) void {
 test "math3d.lookAtLh" {
     var eye = Vec3.init(0, 0, 10);
     var target = Vec3.init(0, 0, 0);
-    var view_matrix = lookAtLh(&eye, &target, &Vec3.up());
+    var view_matrix = lookAtLh(&eye, &target, &Vec3.unitY());
     printMat4x4("\nview_matrix:\n", &view_matrix);
 
     const expected = Mat4x4.{ .data = [][4]f32.{
