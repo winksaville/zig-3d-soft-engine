@@ -35,7 +35,7 @@ zig test --test-filter "camera" src/camera.zig
 zig test --test-filter "mesh" src/mesh.zig
 zig test --test-filter "inputEvents" src/input_events.zig
 zig test --test-filter "math3d" src/math3d.zig
-zig test --test-filter "Window" --library c --library SDL2 src/window.zig
+zig test --test-filter "window" --library c --library SDL2 src/window.zig
 ```
 
 ## Run

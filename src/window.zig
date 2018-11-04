@@ -5,7 +5,10 @@ const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
+
 const math3d = @import("math3d.zig");
+const Camera = @import("camera.zig").Camera;
+const Mesh = @import("mesh.zig").Mesh;
 
 pub const Window = struct.{
     const Self = @This();
@@ -140,11 +143,15 @@ pub const Window = struct.{
             pSelf.putPixel(@floatToInt(usize, point.x()), @floatToInt(usize, point.y()), color);
         }
     }
+
+    /// Render the meshes into the window from the camera's point of view
+    pub fn render(pSelf: *Self, camera: *const Camera, meshes:[] const Mesh) void {
+    }
 };
 
 // Test
 
-test "Window" {
+test "window" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -166,7 +173,7 @@ test "Window" {
     window.present();
 }
 
-test "Window.project" {
+test "window.project" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -201,7 +208,7 @@ test "Window.project" {
     assert(r.y() == 0);
 }
 
-test "Window.drawPoint" {
+test "window.drawPoint" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -217,4 +224,32 @@ test "Window.drawPoint" {
     p1 = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
     window.drawPoint(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
+}
+
+test "window.render" {
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 640, 480, "testWindow");
+    defer window.deinit();
+
+    // Unit cube about 0,0,0
+    var cube_mesh = try Mesh.init(pAllocator, "mesh1", 8);
+    cube_mesh.vertices[0] = math3d.vec3(-1, 1, 1);
+    cube_mesh.vertices[1] = math3d.vec3(1, 1, 1);
+    cube_mesh.vertices[2] = math3d.vec3(-1, -1, 1);
+    cube_mesh.vertices[3] = math3d.vec3(-1, -1, -1);
+    cube_mesh.vertices[4] = math3d.vec3(-1, 1, -1);
+    cube_mesh.vertices[5] = math3d.vec3(1, 1, -1);
+    cube_mesh.vertices[6] = math3d.vec3(1, -1, 1);
+    cube_mesh.vertices[7] = math3d.vec3(1, -1, -1);
+
+    var camera = Camera.init(math3d.vec3(0.1, 0.2, 0.3), math3d.vec3(0.4, 0.5, 0.6));
+
+    var meshes = [] Mesh.{
+        cube_mesh,
+    };
+    window.render(&camera, &meshes);
 }
