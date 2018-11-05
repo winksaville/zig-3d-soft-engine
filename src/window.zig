@@ -145,7 +145,7 @@ pub const Window = struct.{
     }
 
     /// Render the meshes into the window from the camera's point of view
-    pub fn render(pSelf: *Self, camera: *const Camera, meshes:[] const Mesh) void {
+    pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = math3d.lookAtLh(&camera.position, &camera.target, &math3d.Vec3.unitY());
         math3d.printMat4x4("view_matrix:\n", &view_matrix);
 
@@ -258,8 +258,6 @@ test "window.render" {
     var camera_target = math3d.Vec3.zero();
     var camera = Camera.init(camera_position, camera_target);
 
-    var meshes = [] Mesh.{
-        cube_mesh,
-    };
+    var meshes = []Mesh.{cube_mesh};
     window.render(&camera, &meshes);
 }
