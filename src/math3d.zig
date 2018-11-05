@@ -171,14 +171,12 @@ pub fn perspectiveFovRh(fov: f32, aspect: f32, znear: f32, zfar: f32) Mat4x4 {
     var y_scale: f32 = 1.0 / math.tan(fov * 0.5);
     var q = zfar / (znear - zfar);
 
-    // Row major order?
-    var rmo = Mat4x4.{ .data = [][4]f32.{
+    return Mat4x4.{ .data = [][4]f32.{
         []f32.{ y_scale / aspect, 0, 0, 0 },
         []f32.{ 0, y_scale, 0, 0 },
         []f32.{ 0, 0, q, -1.0 },
         []f32.{ 0, 0, q * znear, 0 },
     } };
-    return rmo;
 }
 
 /// Builds a Yaw Pitch Roll Rotation matrix from x, y, z angles in radians.
@@ -211,6 +209,10 @@ pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
     //printMat4x4("rotationYawPitchRoll m:\n", &m);
 
     return m;
+}
+
+pub fn rotationYawPitchRollVec3(point: Vec3) Mat4x4 {
+    return rotationYawPitchRoll(point.x(), point.y(), point.z());
 }
 
 /// Builds a Yaw Pitch Roll Rotation matrix from x, y, z angles in radians.
@@ -254,6 +256,10 @@ pub fn translation(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ 0.0, 0.0, 1.0, z },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
+}
+
+pub fn translationVec3(vertex: Vec3) Mat4x4 {
+    return translation(vertex.x(), vertex.y(), vertex.z());
 }
 
 pub const Vec2 = struct.{
