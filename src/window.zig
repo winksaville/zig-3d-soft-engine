@@ -128,21 +128,30 @@ pub const Window = struct.{
     /// Project takes a 3D coord and converts it to a 2D coordinate
     /// using the transform matrix.
     pub fn project(pSelf: *Self, coord: math3d.Vec3, transMat: *const math3d.Mat4x4) math3d.Vec2 {
+        if (DBG) warn("project:    original x={} y={} z={} widhtf={} heightf={}\n", coord.x(), coord.y(), coord.z(), pSelf.widthf, pSelf.heightf);
+
         // Transform coord in 3D
         var point = coord.transform(transMat);
+        //var point = math3d.Vec3.init(coord.x()/4, coord.y()/4, coord.z()/4); //coord.transform(transMat);
+        if (DBG) warn("project: transformed x={} y={} z={}\n", point.x(), point.y(), point.z());
 
         // The transformed coord is based on a coordinate system
         // where the origin is the center of the screen. Convert
         // them to coordindates where x:0, y:0 is the upper left.
         var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
         var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
+        if (DBG) warn("project:   centered x={} y={}\n", x, y);
         return math3d.Vec2.init(x, y);
     }
 
     /// Draw a Vec2 point clipping it if its outside the screen
     pub fn drawPoint(pSelf: *Self, point: math3d.Vec2, color: u32) void {
+        if (DBG) warn("drawPoint: x={} y={} c={}\n", point.x(), point.y(), color);
         if ((point.x() >= 0) and (point.y() >= 0) and (point.x() < pSelf.widthf) and (point.y() < pSelf.heightf)) {
-            pSelf.putPixel(@floatToInt(usize, point.x()), @floatToInt(usize, point.y()), color);
+            var x = @floatToInt(usize, point.x());
+            var y = @floatToInt(usize, point.y());
+            if (DBG) warn("drawPoint: putting x={} y={} c={}\n", x, y, color);
+            pSelf.putPixel(x, y, color);
         }
     }
 
@@ -153,15 +162,16 @@ pub const Window = struct.{
 
         var fov: f32 = 0.78;
         var znear: f32 = 0.01;
-        var zvar: f32 = 1.0;
-        var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zvar);
-        if (DBG) math3d.printMat4x4("projection_matrix:\n", &projection_matrix);
+        var zfar: f32 = 1.0;
+        var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        if (DBG) warn("projection_matrix: fov={}, znear={} zfar={}\n", fov, znear, zfar);
+        if (DBG) math3d.printMat4x4("", &projection_matrix);
 
         for (meshes) |mesh| {
-            var world_matrix = math3d.translation(mesh.position.x(), mesh.position.y(), mesh.position.z()).mult(&math3d.rotationYawPitchRoll(mesh.rotation.x(), mesh.rotation.y(), mesh.rotation.z()));
+            var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
             if (DBG) math3d.printMat4x4("world_matrix:\n", &world_matrix);
 
-            var transform_matrix = world_matrix.mult(&view_matrix.mult(&projection_matrix));
+            var transform_matrix = projection_matrix.mult(&view_matrix.mult(&world_matrix));
             if (DBG) math3d.printMat4x4("transform_matrix:\n", &transform_matrix);
 
             for (mesh.vertices) |vertex| {
@@ -194,6 +204,7 @@ test "window" {
     assert(window.getPixel(0, 0) == 0x01020304);
 
     window.present();
+    if (DBG) gl.SDL_Delay(3000);
 }
 
 test "window.project" {
@@ -229,6 +240,9 @@ test "window.project" {
     r = window.project(v1, &math3d.mat4x4_identity);
     assert(r.x() == window.widthf);
     assert(r.y() == 0);
+
+    window.present();
+    if (DBG) gl.SDL_Delay(3000);
 }
 
 test "window.drawPoint" {
@@ -247,6 +261,9 @@ test "window.drawPoint" {
     p1 = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
     window.drawPoint(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
+
+    window.present();
+    if (DBG) gl.SDL_Delay(3000);
 }
 
 test "window.render" {
@@ -260,6 +277,7 @@ test "window.render" {
 
     // Black background color
     window.setBgColor(0);
+    window.clear();
 
     // Unit cube about 0,0,0
     var cube_mesh = try Mesh.init(pAllocator, "mesh1", 8);
@@ -278,4 +296,7 @@ test "window.render" {
 
     var meshes = []Mesh.{cube_mesh};
     window.render(&camera, &meshes);
+
+    window.present();
+    if (DBG) gl.SDL_Delay(3000);
 }
