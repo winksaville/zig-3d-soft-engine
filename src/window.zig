@@ -156,6 +156,19 @@ pub const Window = struct.{
         var zvar: f32 = 1.0;
         var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zvar);
         if (DBG) math3d.printMat4x4("projection_matrix:\n", &projection_matrix);
+
+        for (meshes) |mesh| {
+            var world_matrix = math3d.translation(mesh.position.x(), mesh.position.y(), mesh.position.z()).mult(&math3d.rotationYawPitchRoll(mesh.rotation.x(), mesh.rotation.y(), mesh.rotation.z()));
+            if (DBG) math3d.printMat4x4("world_matrix:\n", &world_matrix);
+
+            var transform_matrix = world_matrix.mult(&view_matrix.mult(&projection_matrix));
+            if (DBG) math3d.printMat4x4("transform_matrix:\n", &transform_matrix);
+
+            for (mesh.vertices) |vertex| {
+                var point = pSelf.project(vertex, &transform_matrix);
+                pSelf.drawPoint(point, 0xffffffff);
+            }
+        }
     }
 };
 
@@ -244,6 +257,9 @@ test "window.render" {
 
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
+
+    // Black background color
+    window.setBgColor(0);
 
     // Unit cube about 0,0,0
     var cube_mesh = try Mesh.init(pAllocator, "mesh1", 8);
