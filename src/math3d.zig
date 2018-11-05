@@ -246,6 +246,16 @@ pub fn rotationYawPitchRollNeg(x: f32, y: f32, z: f32) Mat4x4 {
     return m;
 }
 
+/// Builds a 4x4 translation matrix
+pub fn translation(x: f32, y: f32, z: f32) Mat4x4 {
+    return Mat4x4.{ .data = [][4]f32.{
+        []f32.{ 1.0, 0.0, 0.0, x },
+        []f32.{ 0.0, 1.0, 0.0, y },
+        []f32.{ 0.0, 0.0, 1.0, z },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+}
+
 pub const Vec2 = struct.{
     data: [2]f32,
 
@@ -850,4 +860,17 @@ test "math3d.rotationYawPitchRoll" {
     r5 = rneg.mult(&r2);
     printMat4x4("r5:\n", &r5);
     assert_matrix_eq(m_zero, r5);
+}
+
+test "math3d.translation" {
+    warn("\n");
+    var m = translation(1, 2, 3);
+    const expected = Mat4x4.{ .data = [][4]f32.{
+        []f32.{ 1.0, 0.0, 0.0, 1.0 },
+        []f32.{ 0.0, 1.0, 0.0, 2.0 },
+        []f32.{ 0.0, 0.0, 1.0, 3.0 },
+        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    } };
+    printMat4x4("translation: expected\n", &expected);
+    assert_matrix_eq(m, expected);
 }
