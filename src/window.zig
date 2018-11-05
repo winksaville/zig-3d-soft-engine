@@ -10,6 +10,8 @@ const math3d = @import("math3d.zig");
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
 
+const DBG = true;
+
 pub const Window = struct.{
     const Self = @This();
 
@@ -147,13 +149,13 @@ pub const Window = struct.{
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = math3d.lookAtLh(&camera.position, &camera.target, &math3d.Vec3.unitY());
-        math3d.printMat4x4("view_matrix:\n", &view_matrix);
+        if (DBG) math3d.printMat4x4("view_matrix:\n", &view_matrix);
 
         var fov: f32 = 0.78;
         var znear: f32 = 0.01;
         var zvar: f32 = 1.0;
         var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zvar);
-        math3d.printMat4x4("projection_matrix:\n", &projection_matrix);
+        if (DBG) math3d.printMat4x4("projection_matrix:\n", &projection_matrix);
     }
 };
 
