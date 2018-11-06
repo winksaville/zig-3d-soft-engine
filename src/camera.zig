@@ -2,7 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 const math = std.math;
-const math3d = @import("math3d.zig");
+const math3d = @import("math3dx.zig");
 
 pub const Camera = struct.{
     const Self = @This();

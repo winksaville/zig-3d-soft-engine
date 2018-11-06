@@ -1,16 +1,20 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const time = std.os.time;
 const mem = std.mem;
+const math = std.math;
 const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
-const math3d = @import("math3d.zig");
+const math3d = @import("math3dx.zig");
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
 
 const DBG = true;
+const DBG1 = true;
+const DBG2 = true;
 
 pub const Window = struct.{
     const Self = @This();
@@ -128,7 +132,7 @@ pub const Window = struct.{
     /// Project takes a 3D coord and converts it to a 2D coordinate
     /// using the transform matrix.
     pub fn project(pSelf: *Self, coord: math3d.Vec3, transMat: *const math3d.Mat4x4) math3d.Vec2 {
-        if (DBG) warn("project:    original x={} y={} z={} widhtf={} heightf={}\n", coord.x(), coord.y(), coord.z(), pSelf.widthf, pSelf.heightf);
+        if (DBG) warn("project:    original x={} y={} z={} widthf={} heightf={}\n", coord.x(), coord.y(), coord.z(), pSelf.widthf, pSelf.heightf);
 
         // Transform coord in 3D
         var point = coord.transform(transMat);
@@ -158,21 +162,22 @@ pub const Window = struct.{
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = math3d.lookAtLh(&camera.position, &camera.target, &math3d.Vec3.unitY());
-        if (DBG) math3d.printMat4x4("view_matrix:\n", &view_matrix);
+        if (DBG) view_matrix.print("view_matrix:\n");
 
         var fov: f32 = 0.78;
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
         var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
         if (DBG) warn("projection_matrix: fov={}, znear={} zfar={}\n", fov, znear, zfar);
-        if (DBG) math3d.printMat4x4("", &projection_matrix);
+        if (DBG) projection_matrix.print("");
 
         for (meshes) |mesh| {
             var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
-            if (DBG) math3d.printMat4x4("world_matrix:\n", &world_matrix);
+            if (DBG) world_matrix.print("world_matrix:\n");
 
+            //var transform_matrix = view_matrix.mult(&world_matrix);
             var transform_matrix = projection_matrix.mult(&view_matrix.mult(&world_matrix));
-            if (DBG) math3d.printMat4x4("transform_matrix:\n", &transform_matrix);
+            if (DBG) transform_matrix.print("transform_matrix:\n");
 
             for (mesh.vertices) |vertex| {
                 var point = pSelf.project(vertex, &transform_matrix);
@@ -277,26 +282,60 @@ test "window.render" {
 
     // Black background color
     window.setBgColor(0);
-    window.clear();
 
     // Unit cube about 0,0,0
-    var cube_mesh = try Mesh.init(pAllocator, "mesh1", 8);
-    cube_mesh.vertices[0] = math3d.vec3(-1, 1, 1);
-    cube_mesh.vertices[1] = math3d.vec3(1, 1, 1);
-    cube_mesh.vertices[2] = math3d.vec3(-1, -1, 1);
-    cube_mesh.vertices[3] = math3d.vec3(-1, -1, -1);
-    cube_mesh.vertices[4] = math3d.vec3(-1, 1, -1);
-    cube_mesh.vertices[5] = math3d.vec3(1, 1, -1);
-    cube_mesh.vertices[6] = math3d.vec3(1, -1, 1);
-    cube_mesh.vertices[7] = math3d.vec3(1, -1, -1);
+    //var mesh = try Mesh.init(pAllocator, "mesh1", 8);
+    //// Front face
+    //mesh.vertices[0] = math3d.vec3(1, 1, 1);
+    //mesh.vertices[1] = math3d.vec3(1, -1, 1);
+    //mesh.vertices[2] = math3d.vec3(-1, -1, 1);
+    //mesh.vertices[3] = math3d.vec3(-1, 1, 1);
+
+    //// Back face
+    //mesh.vertices[6] = math3d.vec3(1, 1, -1);
+    //mesh.vertices[7] = math3d.vec3(1, -1, -1);
+    //mesh.vertices[4] = math3d.vec3(-1, -1, -1);
+    //mesh.vertices[5] = math3d.vec3(-1, 1, -1);
+
+    //var mesh = try Mesh.init(pAllocator, "mesh1", 2);
+    //mesh.vertices[0] = math3d.vec3(1, 1, 1);
+    //mesh.vertices[1] = math3d.vec3(1, 1, -1);
+
+    var mesh = try Mesh.init(pAllocator, "mesh1", 1);
+    mesh.vertices[0] = math3d.vec3(0, 0, 0);
+    
+    var meshes = []Mesh.{mesh};
+
+    //var movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
+    var movement = math3d.Vec3.init(0, f32(math.pi / 2.0), 0); // rotate 90 degrees around Y axis
+    //var movement = math3d.Vec3.init(0, 0, 0); // No movement
 
     var camera_position = math3d.Vec3.init(0, 0, 10);
     var camera_target = math3d.Vec3.zero();
     var camera = Camera.init(camera_position, camera_target);
 
-    var meshes = []Mesh.{cube_mesh};
-    window.render(&camera, &meshes);
+    // Loop until end_time is reached but always loop once :)
+    var msf: u64 = time.ns_per_s / time.ms_per_s;
+    var timer = try time.Timer.start();
+    var end_time: u64 = 0;
+    if (DBG or DBG1 or DBG2) end_time += (2000 * msf);
+    //while (true) {
+    var i: usize = 2;
+    while (i > 0) : (i -= 1) {
+        window.clear();
 
-    window.present();
-    if (DBG) gl.SDL_Delay(3000);
+        if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
+        window.render(&camera, &meshes);
+
+        //var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+        //window.drawPoint(center, 0xffffffff);
+
+        window.present();
+
+        meshes[0].rotation = meshes[0].rotation.add(&movement);
+
+        //if (timer.read() > end_time) break;
+    }
+
+    while (timer.read() < end_time) {}
 }
