@@ -11,6 +11,7 @@ const gl = @import("../modules/zig-sdl2/src/index.zig");
 const math3d = @import("math3dx.zig");
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
+const ie = @import("input_events.zig");
 
 const DBG = true;
 const DBG1 = true;
@@ -132,25 +133,25 @@ pub const Window = struct.{
     /// Project takes a 3D coord and converts it to a 2D coordinate
     /// using the transform matrix.
     pub fn project(pSelf: *Self, coord: math3d.Vec3, transMat: *const math3d.Mat4x4) math3d.Vec2 {
-        if (DBG) warn("project:    original x={} y={} z={} widthf={} heightf={}\n", coord.x(), coord.y(), coord.z(), pSelf.widthf, pSelf.heightf);
+        if (DBG) warn("project:    original x={.3} y={.3} z={.3} widthf={.3} heightf={.3}\n", coord.x(), coord.y(), coord.z(), pSelf.widthf, pSelf.heightf);
 
         // Transform coord in 3D
         var point = coord.transform(transMat);
-        //var point = math3d.Vec3.init(coord.x()/4, coord.y()/4, coord.z()/4); //coord.transform(transMat);
-        if (DBG) warn("project: transformed x={} y={} z={}\n", point.x(), point.y(), point.z());
+        if (DBG) warn("project: transformed x={.3} y={.3} z={.3}\n", point.x(), point.y(), point.z());
 
         // The transformed coord is based on a coordinate system
         // where the origin is the center of the screen. Convert
         // them to coordindates where x:0, y:0 is the upper left.
         var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
         var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
-        if (DBG) warn("project:   centered x={} y={}\n", x, y);
+        //var y = (point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
+        if (DBG) warn("project:   centered x={.3} y={.3}\n", x, y);
         return math3d.Vec2.init(x, y);
     }
 
     /// Draw a Vec2 point clipping it if its outside the screen
     pub fn drawPoint(pSelf: *Self, point: math3d.Vec2, color: u32) void {
-        if (DBG) warn("drawPoint: x={} y={} c={}\n", point.x(), point.y(), color);
+        if (DBG) warn("drawPoint: x={.3} y={.3} c={x}\n", point.x(), point.y(), color);
         if ((point.x() >= 0) and (point.y() >= 0) and (point.x() < pSelf.widthf) and (point.y() < pSelf.heightf)) {
             var x = @floatToInt(usize, point.x());
             var y = @floatToInt(usize, point.y());
@@ -168,7 +169,7 @@ pub const Window = struct.{
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
         var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        if (DBG) warn("projection_matrix: fov={}, znear={} zfar={}\n", fov, znear, zfar);
+        if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n", fov, znear, zfar);
         if (DBG) projection_matrix.print("");
 
         for (meshes) |mesh| {
@@ -271,7 +272,7 @@ test "window.drawPoint" {
     if (DBG) gl.SDL_Delay(3000);
 }
 
-test "window.render" {
+test "window.render.cube" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -283,32 +284,26 @@ test "window.render" {
     // Black background color
     window.setBgColor(0);
 
+    var mesh: Mesh = undefined;
+
     // Unit cube about 0,0,0
-    //var mesh = try Mesh.init(pAllocator, "mesh1", 8);
-    //// Front face
-    //mesh.vertices[0] = math3d.vec3(1, 1, 1);
-    //mesh.vertices[1] = math3d.vec3(1, -1, 1);
-    //mesh.vertices[2] = math3d.vec3(-1, -1, 1);
-    //mesh.vertices[3] = math3d.vec3(-1, 1, 1);
+    mesh = try Mesh.init(pAllocator, "mesh1", 8);
 
-    //// Back face
-    //mesh.vertices[6] = math3d.vec3(1, 1, -1);
-    //mesh.vertices[7] = math3d.vec3(1, -1, -1);
-    //mesh.vertices[4] = math3d.vec3(-1, -1, -1);
-    //mesh.vertices[5] = math3d.vec3(-1, 1, -1);
+    // Front face
+    mesh.vertices[0] = math3d.vec3(1, 1, 1);
+    mesh.vertices[1] = math3d.vec3(1, -1, 1);
+    mesh.vertices[2] = math3d.vec3(-1, -1, 1);
+    mesh.vertices[3] = math3d.vec3(-1, 1, 1);
 
-    //var mesh = try Mesh.init(pAllocator, "mesh1", 2);
-    //mesh.vertices[0] = math3d.vec3(1, 1, 1);
-    //mesh.vertices[1] = math3d.vec3(1, 1, -1);
+    // Back face
+    mesh.vertices[6] = math3d.vec3(1, 1, -1);
+    mesh.vertices[7] = math3d.vec3(1, -1, -1);
+    mesh.vertices[4] = math3d.vec3(-1, -1, -1);
+    mesh.vertices[5] = math3d.vec3(-1, 1, -1);
 
-    var mesh = try Mesh.init(pAllocator, "mesh1", 1);
-    mesh.vertices[0] = math3d.vec3(0, 0, 0);
-    
     var meshes = []Mesh.{mesh};
 
-    //var movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
-    var movement = math3d.Vec3.init(0, f32(math.pi / 2.0), 0); // rotate 90 degrees around Y axis
-    //var movement = math3d.Vec3.init(0, 0, 0); // No movement
+    var movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
 
     var camera_position = math3d.Vec3.init(0, 0, 10);
     var camera_target = math3d.Vec3.zero();
@@ -318,24 +313,123 @@ test "window.render" {
     var msf: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
     var end_time: u64 = 0;
-    if (DBG or DBG1 or DBG2) end_time += (2000 * msf);
-    //while (true) {
-    var i: usize = 2;
-    while (i > 0) : (i -= 1) {
+    if (DBG or DBG1 or DBG2) end_time += (5000 * msf);
+    while (true) {
         window.clear();
 
         if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
         window.render(&camera, &meshes);
 
-        //var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
-        //window.drawPoint(center, 0xffffffff);
+        var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+        window.drawPoint(center, 0xffffffff);
 
         window.present();
 
         meshes[0].rotation = meshes[0].rotation.add(&movement);
 
-        //if (timer.read() > end_time) break;
+        if (timer.read() > end_time) break;
     }
+}
 
-    while (timer.read() < end_time) {}
+test "window.pts" {
+    if (DBG) {
+        var direct_allocator = std.heap.DirectAllocator.init();
+        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+        defer arena_allocator.deinit();
+        var pAllocator = &arena_allocator.allocator;
+
+        var window = try Window.init(pAllocator, 640, 480, "testWindow");
+        defer window.deinit();
+
+        // Black background color
+        window.setBgColor(0);
+
+        var mesh: Mesh = undefined;
+
+        // Horizitonal line 1 unit above 0,0,0
+        mesh = try Mesh.init(pAllocator, "mesh1", 2);
+        mesh.vertices[0] = math3d.vec3(1, 1, 0.5);
+        mesh.vertices[1] = math3d.vec3(-1, 1, 0.5);
+
+        //mesh = try Mesh.init(pAllocator, "mesh1", 1);
+        //mesh.vertices[0] = math3d.vec3(0, 0, 0);
+
+        var meshes = []Mesh.{mesh};
+
+        var movement: math3d.Vec3 = undefined;
+        //movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
+        movement = math3d.Vec3.init(0, f32(math.pi / 2.0), 0); // rotate 90 degrees around Y axis
+        //movement = math3d.Vec3.init(0, 0, 0); // No movement
+
+        var camera_position = math3d.Vec3.init(0, 0, 10); //1);
+        var camera_target = math3d.Vec3.zero();
+        var camera = Camera.init(camera_position, camera_target);
+
+        // Loop until end_time is reached but always loop once :)
+        var msf: u64 = time.ns_per_s / time.ms_per_s;
+        var timer = try time.Timer.start();
+        var end_time: u64 = 0;
+
+        var ks = KeyState.{
+            .new_key = false,
+            .code = undefined,
+            .ei = ie.EventInterface.{
+                .event = undefined,
+                .handleKeyEvent = handleKeyEvent,
+                .handleMouseEvent = IgnoreEvent,
+                .handleOtherEvent = IgnoreEvent,
+            },
+        };
+
+        done: while (true) {
+            // Update the display
+            window.clear();
+
+            if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
+            window.render(&camera, &meshes);
+
+            //var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+            //window.drawPoint(center, 0xffffffff);
+
+            window.drawPoint(math3d.Vec2.init(10, 10), 0xffffffff);
+
+            window.present();
+
+            // Wait for a key
+            ks.new_key = false;
+            noEvents: while (ks.new_key == false) {
+                _ = ie.pollInputEvent(&ks, &ks.ei);
+            }
+
+            // Process the key
+            switch (ks.code) {
+                gl.SDLK_ESCAPE => break :done,
+                gl.SDLK_UP => meshes[0].rotation = meshes[0].rotation.add(&movement),
+                gl.SDLK_DOWN => meshes[0].rotation = meshes[0].rotation.subtract(&movement),
+                else => {},
+            }
+        }
+    }
+}
+
+const KeyState = struct.{
+    new_key: bool,
+    code: gl.SDL_Keycode,
+    ei: ie.EventInterface,
+};
+
+fn handleKeyEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
+    var pKey_state = @intToPtr(*KeyState, @ptrToInt(pThing));
+    switch (event.type) {
+        gl.SDL_KEYUP => {
+            pKey_state.*.new_key = true;
+            pKey_state.*.code = event.key.keysym.sym;
+        },
+        else => {},
+    }
+    return ie.EventResult.Continue;
+}
+
+fn IgnoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
+    return ie.EventResult.Continue;
 }
