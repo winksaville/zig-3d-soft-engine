@@ -133,11 +133,11 @@ pub const Window = struct.{
     /// Project takes a 3D coord and converts it to a 2D coordinate
     /// using the transform matrix.
     pub fn project(pSelf: *Self, coord: math3d.Vec3, transMat: *const math3d.Mat4x4) math3d.Vec2 {
-        if (DBG) warn("project:    original x={.3} y={.3} z={.3} widthf={.3} heightf={.3}\n", coord.x(), coord.y(), coord.z(), pSelf.widthf, pSelf.heightf);
+        if (DBG) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
 
         // Transform coord in 3D
         var point = coord.transform(transMat);
-        if (DBG) warn("project: transformed x={.3} y={.3} z={.3}\n", point.x(), point.y(), point.z());
+        if (DBG) warn("project: transformed point={}\n", &point);
 
         // The transformed coord is based on a coordinate system
         // where the origin is the center of the screen. Convert
@@ -167,7 +167,8 @@ pub const Window = struct.{
         var fov: f32 = 0.78;
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
-        var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        //var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        var projection_matrix = math3d.mat4x4_identity;
         if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &projection_matrix);
 
         for (meshes) |mesh| {
@@ -208,6 +209,7 @@ test "window" {
 }
 
 test "window.project" {
+    warn("\n");
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
