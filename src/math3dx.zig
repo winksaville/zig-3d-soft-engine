@@ -11,6 +11,8 @@ const approxEql = @import("../modules/zig-approxeql/approxeql.zig").approxEql;
 const DBG = true;
 
 pub const Mat4x4 = struct.{
+    const Self = @This();
+
     data: [4][4]f32,
 
     /// matrix multiplication
@@ -66,15 +68,19 @@ pub const Mat4x4 = struct.{
         assert(approxEql(pSelf.data[3][3], pOther.data[3][3], digits));
     }
 
-    pub fn print(pSelf: *const Mat4x4, s: []const u8) void {
-        warn("{}", s);
-        for (pSelf.data) |row, i| {
-            //warn("{}: []f32.{{ ", i);
-            warn("    []f32.{{ ");
+    /// Custom format routine for Mat4x4
+    pub fn format(self: *const Self,
+        comptime fmt: []const u8,
+        context: var,
+        comptime FmtError: type,
+        output: fn (@typeOf(context), []const u8) FmtError!void
+    ) FmtError!void {
+        for (self.data) |row, i| {
+            try std.fmt.format(context, FmtError, output, " []f32.{{ ");
             for (row) |col, j| {
-                warn("{.7}{} ", col, if (j < (row.len - 1)) "," else "");
+                try std.fmt.format(context, FmtError, output, "{.7}{} ", col, if (j < (row.len - 1)) "," else "");
             }
-            warn("}},\n");
+            try std.fmt.format(context, FmtError, output, "}},\n");
         }
     }
 };
@@ -87,6 +93,8 @@ pub const mat4x4_identity = Mat4x4.{ .data = [][4]f32.{
 } };
 
 pub const Vec2 = struct.{
+    const Self = @This();
+
     data: [2]f32,
 
     pub fn init(xp: f32, yp: f32) Vec2 {
@@ -124,12 +132,22 @@ pub const Vec2 = struct.{
         return v.data[0] * other.data[0] + v.data[1] * other.data[1];
     }
 
-    pub fn length(v: Vec2) f32 {
+    pub fn length(v: *const Vec2) f32 {
         return math.sqrt(v.dot(v));
     }
 
     pub fn add(v: *const Vec2, other: *const Vec2) Vec2 {
         return Vec2.init(v.x() + other.x(), v.y() + other.y());
+    }
+
+    /// Custom format routine for Vec2
+    pub fn format(self: *const Self,
+        comptime fmt: []const u8,
+        context: var,
+        comptime FmtError: type,
+        output: fn (@typeOf(context), []const u8) FmtError!void
+    ) FmtError!void {
+        try std.fmt.format(context, FmtError, output, "x={.3} y={.3}", self.x(), self.y());
     }
 };
 
@@ -158,6 +176,8 @@ test "math3d.vec2" {
 }
 
 pub const Vec3 = struct.{
+    const Self = @This();
+
     data: [3]f32,
 
     pub fn init(xp: f32, yp: f32, zp: f32) Vec3 {
@@ -216,7 +236,7 @@ pub const Vec3 = struct.{
         return (v.x() * other.x()) + (v.y() * other.y()) + (v.z() * other.z());
     }
 
-    pub fn length(v: Vec3) f32 {
+    pub fn length(v: *const Vec3) f32 {
         return math.sqrt(v.dot(v));
     }
 
@@ -245,6 +265,16 @@ pub const Vec3 = struct.{
         const rw = 1.0 / ((v.x() * m.data[0][3]) + (v.y() * m.data[1][3]) + (v.z() * m.data[2][3]) + m.data[3][3]);
 
         return Vec3.init(rx * rw, ry * rw, rz * rw);
+    }
+
+    /// Custom format routine for Vec3
+    pub fn format(self: *const Self,
+        comptime fmt: []const u8,
+        context: var,
+        comptime FmtError: type,
+        output: fn (@typeOf(context), []const u8) FmtError!void
+    ) FmtError!void {
+        try std.fmt.format(context, FmtError, output, "{{.x={.3} .y={.3} .z={.3}}}", self.data[0], self.data[1], self.data[2]);
     }
 };
 
@@ -309,6 +339,8 @@ test "math3d.vec3.add" {
 }
 
 pub const Vec4 = struct.{
+    const Self = @This();
+
     data: [4]f32,
 
     pub fn init(xp: f32, yp: f32, zp: f32, wp: f32) Vec4 {
@@ -345,6 +377,16 @@ pub const Vec4 = struct.{
 
     pub fn setW(v: *Vec4, wp: f32) void {
         v.data[3] = wp;
+    }
+
+    /// Custom format routine for Vec4
+    pub fn format(self: *const Self,
+        comptime fmt: []const u8,
+        context: var,
+        comptime FmtError: type,
+        output: fn (@typeOf(context), []const u8) FmtError!void
+    ) FmtError!void {
+        try std.fmt.format(context, FmtError, output, "x={.3} y={.3} z={.3} w={.3}", self.x(), self.y(), self.z(), self.w());
     }
 };
 
@@ -403,13 +445,14 @@ test "math3d.translation" {
         []f32.{ 0.0, 0.0, 1.0, 3.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) expected.print("translation: expected\n");
+    if (DBG) warn("translation: expected\n{}", &expected);
     m.assert_matrix_eq(&expected);
 }
 
 /// Create a left-handed, look-at matrix
 /// BasedOn: https://github.com/sharpdx/SharpDX/blob/755cb46d59f4bfb94386ff2df3fceccc511c216b/Source/SharpDX.Mathematics/Matrix.cs#L2010
 pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
+    if (DBG) warn("\nmath3d.lookAtLh: eye {} target {}\n", eye, target);
     var zaxis = target.subtract(eye).normalize();
     var xaxis = up.cross(&zaxis).normalize();
     var yaxis = zaxis.cross(&xaxis);
@@ -430,14 +473,15 @@ pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
         []f32.{ 0, 0, 0, 1 },
     } };
 
-    return rmo;
+    var result = rmo;
+    if (DBG) warn("math3d.lookAtLh: result\n{}", &result);
+    return result;
 }
 
 test "math3d.lookAtLh" {
     var eye = Vec3.init(0, 0, 10);
     var target = Vec3.init(0, 0, 0);
     var view_matrix = lookAtLh(&eye, &target, &Vec3.unitY());
-    if (DBG) view_matrix.print("\nview_matrix:\n");
 
     const expected = Mat4x4.{ .data = [][4]f32.{
         []f32.{ -1.00000, 0.00000, 0.00000, 0.00000 },
@@ -469,7 +513,7 @@ test "math3d.perspectiveFovRh" {
     var znear: f32 = 0.01;
     var zvar: f32 = 1.0;
     var projection_matrix = perspectiveFovRh(fov, widthf / heightf, znear, zvar);
-    if (DBG) projection_matrix.print("\nprojection_matrix:\n");
+    if (DBG) warn("\nprojection_matrix:\n{}", &projection_matrix);
 
     const expected = Mat4x4.{ .data = [][4]f32.{
         []f32.{ 1.8245738, 0.0000000, 0.0000000, 0.0000000 },
@@ -488,7 +532,7 @@ pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ 0.0, 0.0, 1.0, 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) rz.print("rotationYawPitchRoll rz:\n");
+    if (DBG) warn("rotationYawPitchRoll rz:\n{}", &rz);
 
     const rx = Mat4x4.{ .data = [][4]f32.{
         []f32.{ 1.0, 0.0, 0.0, 0.0 },
@@ -496,7 +540,7 @@ pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ 0.0, math.sin(x), math.cos(x), 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) rx.print("rotationYawPitchRoll rx:\n");
+    if (DBG) warn("rotationYawPitchRoll rx:\n{}", &rx);
 
     const ry = Mat4x4.{ .data = [][4]f32.{
         []f32.{ math.cos(y), 0.0, math.sin(y), 0.0 },
@@ -504,10 +548,10 @@ pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ -math.sin(y), 0.0, math.cos(y), 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) ry.print("rotationYawPitchRoll ry:\n");
+    if (DBG) warn("rotationYawPitchRoll ry:\n{}", &ry);
 
     var m = rz.mult(&ry.mult(&rx));
-    if (DBG) m.print("rotationYawPitchRoll m:\n");
+    if (DBG) warn("rotationYawPitchRoll m:\n{}", &m);
 
     return m;
 }
@@ -525,7 +569,7 @@ pub fn rotationYawPitchRollNeg(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ 0.0, 0.0, 1.0, 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) rz.print("rotationYawPitchRollNeg rz:\n");
+    if (DBG) warn("rotationYawPitchRollNeg rz:\n{}", &rz);
 
     const rx = Mat4x4.{ .data = [][4]f32.{
         []f32.{ 1.0, 0.0, 0.0, 0.0 },
@@ -533,7 +577,7 @@ pub fn rotationYawPitchRollNeg(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ 0.0, math.sin(x), math.cos(x), 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) rx.print("rotationYawPitchRollNeg rx:\n");
+    if (DBG) warn("rotationYawPitchRollNeg rx:\n{}", &rx);
 
     const ry = Mat4x4.{ .data = [][4]f32.{
         []f32.{ math.cos(y), 0.0, math.sin(y), 0.0 },
@@ -541,10 +585,10 @@ pub fn rotationYawPitchRollNeg(x: f32, y: f32, z: f32) Mat4x4 {
         []f32.{ -math.sin(y), 0.0, math.cos(y), 0.0 },
         []f32.{ 0.0, 0.0, 0.0, 1.0 },
     } };
-    if (DBG) ry.print("rotationYawPitchRollNeg ry:\n");
+    if (DBG) warn("rotationYawPitchRollNeg ry:\n{}", &ry);
 
     var m = rx.mult(&ry.mult(&rz));
-    if (DBG) m.print("rotationYawPitchRollNeg m:\n");
+    if (DBG) warn("rotationYawPitchRollNeg m:\n{}", &m);
 
     return m;
 }
@@ -553,41 +597,41 @@ test "math3d.rotationYawPitchRoll" {
     if (DBG) warn("\n");
     const deg10rad: f32 = 0.174522;
     var m_zero = rotationYawPitchRoll(0, 0, 0);
-    if (DBG) m_zero.print("m_zero:\n");
+    if (DBG) warn("m_zero:\n{}", &m_zero);
 
     var m_x_pos_ten_deg = rotationYawPitchRoll(deg10rad, 0, 0);
-    if (DBG) m_x_pos_ten_deg.print("m_x_pos_ten_deg:\n");
+    if (DBG) warn("m_x_pos_ten_deg:\n{}", &m_x_pos_ten_deg);
     var m_x_neg_ten_deg = rotationYawPitchRoll(-deg10rad, 0, 0);
-    if (DBG) m_x_neg_ten_deg.print("m_x_neg_ten_deg:\n");
+    if (DBG) warn("m_x_neg_ten_deg:\n{}", &m_x_neg_ten_deg);
     var x = m_x_pos_ten_deg.mult(&m_x_neg_ten_deg);
-    if (DBG) x.print("x = pos * neg:\n");
+    if (DBG) warn("x = pos * neg:\n{}", & x);
     m_zero.assert_matrix_eq(&x);
 
     if (DBG) warn("\n");
     var m_y_pos_ten_deg = rotationYawPitchRoll(0, deg10rad, 0);
-    if (DBG) m_y_pos_ten_deg.print("m_y_pos_ten_deg:\n");
+    if (DBG) warn("m_y_pos_ten_deg:\n{}", m_y_pos_ten_deg);
     var m_y_neg_ten_deg = rotationYawPitchRoll(0, -deg10rad, 0);
-    if (DBG) m_y_neg_ten_deg.print("m_y_neg_ten_deg:\n");
+    if (DBG) warn("m_y_neg_ten_deg:\n{}", m_y_neg_ten_deg);
     var y = m_y_pos_ten_deg.mult(&m_y_neg_ten_deg);
-    if (DBG) y.print("y = pos * neg:\n");
+    if (DBG) warn("y = pos * neg:\n{}", &y);
     m_zero.assert_matrix_eq(&y);
 
     if (DBG) warn("\n");
     var m_z_pos_ten_deg = rotationYawPitchRoll(0, 0, deg10rad);
-    if (DBG) m_z_pos_ten_deg.print("m_z_pos_ten_deg:\n");
+    if (DBG) warn("m_z_pos_ten_deg:\n{}", m_z_pos_ten_deg);
     var m_z_neg_ten_deg = rotationYawPitchRoll(0, 0, -deg10rad);
-    if (DBG) m_z_neg_ten_deg.print("m_z_neg_ten_deg:\n");
+    if (DBG) warn("m_z_neg_ten_deg:\n{}", m_z_neg_ten_deg);
     var z = m_z_pos_ten_deg.mult(&m_z_neg_ten_deg);
-    if (DBG) z.print("z = pos * neg:\n");
+    if (DBG) warn("z = pos * neg:\n{}", &z);
     m_zero.assert_matrix_eq(&z);
 
     if (DBG) warn("\n");
     var xy_pos = m_x_pos_ten_deg.mult(&m_y_pos_ten_deg);
-    if (DBG) xy_pos.print("xy_pos = x_pos_ten * y_pos_ten:\n");
+    if (DBG) warn("xy_pos = x_pos_ten * y_pos_ten:\n{}", &xy_pos);
     var a = xy_pos.mult(&m_y_neg_ten_deg);
-    if (DBG) a.print("a = xy_pos * y_pos_ten\n");
+    if (DBG) warn("a = xy_pos * y_pos_ten\n{}", &a);
     var b = a.mult(&m_x_neg_ten_deg);
-    if (DBG) b.print("b = a * x_pos_ten\n");
+    if (DBG) warn("b = a * x_pos_ten\n{}", &b);
     m_zero.assert_matrix_eq(&b);
 
     // To undo a rotationYayPitchRoll the multiplication in rotationYawPitch
@@ -600,22 +644,22 @@ test "math3d.rotationYawPitchRoll" {
     //   3) r5 = -rx * r4
     if (DBG) warn("\n");
     var r2 = rotationYawPitchRoll(deg10rad, deg10rad, deg10rad);
-    if (DBG) r2.print("r2:\n");
+    if (DBG) warn("r2:\n{}", &r2);
     var r3 = m_z_neg_ten_deg.mult(&r2);
     var r4 = m_y_neg_ten_deg.mult(&r3);
     var r5 = m_x_neg_ten_deg.mult(&r4);
-    if (DBG) r5.print("r5:\n");
+    if (DBG) warn("r5:\n{}", &r5);
     m_zero.assert_matrix_eq(&r5);
 
     // Here is the above as a single line both are equal to m_zero
     r5 = m_x_neg_ten_deg.mult(&m_y_neg_ten_deg.mult(&m_z_neg_ten_deg.mult(&r2)));
-    if (DBG) r5.print("r5 one line:\n");
+    if (DBG) warn("r5 one line:\n{}", &r5);
     m_zero.assert_matrix_eq(&r5);
 
     // Or you can use rotationYawPitchRollNeg
     var rneg = rotationYawPitchRollNeg(-deg10rad, -deg10rad, -deg10rad);
-    if (DBG) rneg.print("rneg:\n");
+    if (DBG) warn("rneg:\n{}", &rneg);
     r5 = rneg.mult(&r2);
-    if (DBG) r5.print("r5:\n");
+    if (DBG) warn("r5:\n{}", &r5);
     m_zero.assert_matrix_eq(&r5);
 }

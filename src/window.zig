@@ -51,7 +51,7 @@ pub const Window = struct.{
             .sdl_texture = undefined,
         };
 
-        self.setBgColor(0xffffffff);
+        self.setBgColor(0); //xffffffff);
 
         // Initialize SDL
         if (gl.SDL_Init(gl.SDL_INIT_VIDEO | gl.SDL_INIT_AUDIO) != 0) {
@@ -144,7 +144,6 @@ pub const Window = struct.{
         // them to coordindates where x:0, y:0 is the upper left.
         var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
         var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
-        //var y = (point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
         if (DBG) warn("project:   centered x={.3} y={.3}\n", x, y);
         return math3d.Vec2.init(x, y);
     }
@@ -155,7 +154,7 @@ pub const Window = struct.{
         if ((point.x() >= 0) and (point.y() >= 0) and (point.x() < pSelf.widthf) and (point.y() < pSelf.heightf)) {
             var x = @floatToInt(usize, point.x());
             var y = @floatToInt(usize, point.y());
-            if (DBG) warn("drawPoint: putting x={} y={} c={}\n", x, y, color);
+            if (DBG) warn("drawPoint: putting x={} y={} c={x}\n", x, y, color);
             pSelf.putPixel(x, y, color);
         }
     }
@@ -163,22 +162,20 @@ pub const Window = struct.{
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = math3d.lookAtLh(&camera.position, &camera.target, &math3d.Vec3.unitY());
-        if (DBG) view_matrix.print("view_matrix:\n");
+        if (DBG) warn("view_matrix:\n{}", &view_matrix);
 
         var fov: f32 = 0.78;
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
         var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n", fov, znear, zfar);
-        if (DBG) projection_matrix.print("");
+        if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &projection_matrix);
 
         for (meshes) |mesh| {
             var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
-            if (DBG) world_matrix.print("world_matrix:\n");
+            if (DBG) warn("world_matrix:\n{}", &world_matrix);
 
-            //var transform_matrix = view_matrix.mult(&world_matrix);
             var transform_matrix = projection_matrix.mult(&view_matrix.mult(&world_matrix));
-            if (DBG) transform_matrix.print("transform_matrix:\n");
+            if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
 
             for (mesh.vertices) |vertex| {
                 var point = pSelf.project(vertex, &transform_matrix);
@@ -208,9 +205,6 @@ test "window" {
     assert(mem.eql(u8, window.name, "testWindow"));
     window.putPixel(0, 0, 0x01020304);
     assert(window.getPixel(0, 0) == 0x01020304);
-
-    window.present();
-    if (DBG) gl.SDL_Delay(3000);
 }
 
 test "window.project" {
@@ -246,9 +240,6 @@ test "window.project" {
     r = window.project(v1, &math3d.mat4x4_identity);
     assert(r.x() == window.widthf);
     assert(r.y() == 0);
-
-    window.present();
-    if (DBG) gl.SDL_Delay(3000);
 }
 
 test "window.drawPoint" {
@@ -267,9 +258,6 @@ test "window.drawPoint" {
     p1 = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
     window.drawPoint(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
-
-    window.present();
-    if (DBG) gl.SDL_Delay(3000);
 }
 
 test "window.render.cube" {
@@ -280,9 +268,6 @@ test "window.render.cube" {
 
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
-
-    // Black background color
-    window.setBgColor(0);
 
     var mesh: Mesh = undefined;
 
@@ -348,8 +333,10 @@ test "window.pts" {
 
         // Horizitonal line 1 unit above 0,0,0
         mesh = try Mesh.init(pAllocator, "mesh1", 2);
-        mesh.vertices[0] = math3d.vec3(1, 1, 0.5);
-        mesh.vertices[1] = math3d.vec3(-1, 1, 0.5);
+        mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0);
+        mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0);
+        //mesh.vertices[0] = math3d.vec3(1, 1, 0.5);
+        //mesh.vertices[1] = math3d.vec3(-1, 1, 0.5);
 
         //mesh = try Mesh.init(pAllocator, "mesh1", 1);
         //mesh.vertices[0] = math3d.vec3(0, 0, 0);
@@ -361,7 +348,7 @@ test "window.pts" {
         movement = math3d.Vec3.init(0, f32(math.pi / 2.0), 0); // rotate 90 degrees around Y axis
         //movement = math3d.Vec3.init(0, 0, 0); // No movement
 
-        var camera_position = math3d.Vec3.init(0, 0, 10); //1);
+        var camera_position = math3d.Vec3.init(0, 0, 10);
         var camera_target = math3d.Vec3.zero();
         var camera = Camera.init(camera_position, camera_target);
 
@@ -388,10 +375,8 @@ test "window.pts" {
             if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
             window.render(&camera, &meshes);
 
-            //var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
-            //window.drawPoint(center, 0xffffffff);
-
-            window.drawPoint(math3d.Vec2.init(10, 10), 0xffffffff);
+            var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+            window.drawPoint(center, 0xffffffff);
 
             window.present();
 
