@@ -80,8 +80,8 @@ pub fn main() u8 {
             .handleMouseEvent = handleMouseEvent,
             .handleOtherEvent = handleOtherEvent,
         },
-        .bg_color = 0xffffffff, // white
-        .fg_color = 0x00000000, // black
+        .bg_color = 0x00000000, // black
+        .fg_color = 0xffffffff, // white
         .width = 640,
         .height = 480,
     };
