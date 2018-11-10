@@ -164,12 +164,12 @@ pub const Window = struct.{
         var view_matrix = math3d.lookAtLh(&camera.position, &camera.target, &math3d.Vec3.unitY());
         if (DBG) warn("view_matrix:\n{}", &view_matrix);
 
-        var fov: f32 = 0.78;
+        var fov: f32 = rad(f32(90));
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
-        //var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        var projection_matrix = math3d.mat4x4_identity;
-        if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &projection_matrix);
+        var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        //var projection_matrix = math3d.mat4x4_identity;
+        if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", deg(fov), znear, zfar, &projection_matrix);
 
         for (meshes) |mesh| {
             var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
@@ -178,9 +178,10 @@ pub const Window = struct.{
             var transform_matrix = projection_matrix.mult(&view_matrix.mult(&world_matrix));
             if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
 
-            for (mesh.vertices) |vertex| {
+            for (mesh.vertices) |vertex, i| {
                 var point = pSelf.project(vertex, &transform_matrix);
-                pSelf.drawPoint(point, 0xffffffff);
+                const color = if (i >= (mesh.vertices.len / 2)) u32(0xffff00ff) else u32(0xff00ffff);
+                pSelf.drawPoint(point, color);
             }
         }
     }
@@ -318,6 +319,16 @@ test "window.render.cube" {
     }
 }
 
+fn rad(d: var) @typeOf(d) {
+    const T = @typeOf(d);
+    return d * T(math.pi) / T(180.0);
+}
+
+fn deg(r: var) @typeOf(r) {
+    const T = @typeOf(r);
+    return r * T(180.0) / T(math.pi);
+}
+
 test "window.pts" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
@@ -325,7 +336,7 @@ test "window.pts" {
         defer arena_allocator.deinit();
         var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 640, 480, "testWindow");
+        var window = try Window.init(pAllocator, 512, 512, "testWindow");
         defer window.deinit();
 
         // Black background color
@@ -333,24 +344,35 @@ test "window.pts" {
 
         var mesh: Mesh = undefined;
 
-        // Horizitonal line 1 unit above 0,0,0
-        mesh = try Mesh.init(pAllocator, "mesh1", 2);
-        mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0);
-        mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0);
-        //mesh.vertices[0] = math3d.vec3(1, 1, 0.5);
-        //mesh.vertices[1] = math3d.vec3(-1, 1, 0.5);
+        // Horizitonal line .1 unit above 0,0,0
+        //mesh = try Mesh.init(pAllocator, "mesh1", 2);
+        //mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.0);
+        //mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.0);
 
-        //mesh = try Mesh.init(pAllocator, "mesh1", 1);
-        //mesh.vertices[0] = math3d.vec3(0, 0, 0);
+        // Box
+        mesh = try Mesh.init(pAllocator, "mesh1", 4);
+        mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.0);
+        mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.0);
+        mesh.vertices[2] = math3d.vec3(0.1, -0.1, 0.0);
+        mesh.vertices[3] = math3d.vec3(-0.1, -0.1, 0.0);
+
+        // Cube
+        //mesh = try Mesh.init(pAllocator, "mesh1", 8);
+        //mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.1);
+        //mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.1);
+        //mesh.vertices[2] = math3d.vec3(0.1, -0.1, 0.1);
+        //mesh.vertices[3] = math3d.vec3(-0.1, -0.1, 0.1);
+        //mesh.vertices[4] = math3d.vec3(0.1, 0.1, -0.1);
+        //mesh.vertices[5] = math3d.vec3(-0.1, 0.1, -0.1);
+        //mesh.vertices[6] = math3d.vec3(0.1, -0.1, -0.1);
+        //mesh.vertices[7] = math3d.vec3(-0.1, -0.1, -0.1);
 
         var meshes = []Mesh.{mesh};
 
-        var movement: math3d.Vec3 = undefined;
-        //movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
-        movement = math3d.Vec3.init(0, f32(math.pi / 2.0), 0); // rotate 90 degrees around Y axis
-        //movement = math3d.Vec3.init(0, 0, 0); // No movement
+        //var movement: math3d.Vec3 = undefined;
+        //movement = math3d.Vec3.init(rad(f32(2)), rad(f32(2)), rad(f32(2)));
 
-        var camera_position = math3d.Vec3.init(0, 0, 10);
+        var camera_position = math3d.Vec3.init(0, 0, 100);
         var camera_target = math3d.Vec3.zero();
         var camera = Camera.init(camera_position, camera_target);
 
@@ -362,6 +384,7 @@ test "window.pts" {
         var ks = KeyState.{
             .new_key = false,
             .code = undefined,
+            .mod = undefined,
             .ei = ie.EventInterface.{
                 .event = undefined,
                 .handleKeyEvent = handleKeyEvent,
@@ -374,6 +397,9 @@ test "window.pts" {
             // Update the display
             window.clear();
 
+            if (DBG or DBG1 or DBG2) warn("\n");
+
+            if (DBG1) warn("camera={.5}:{.5}:{.5}\n", camera.position.x(), camera.position.y(), camera.position.z());
             if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
             window.render(&camera, &meshes);
 
@@ -389,10 +415,15 @@ test "window.pts" {
             }
 
             // Process the key
+            if (DBG) warn("ks.mod={}\n", ks.mod);
             switch (ks.code) {
                 gl.SDLK_ESCAPE => break :done,
-                gl.SDLK_UP => meshes[0].rotation = meshes[0].rotation.add(&movement),
-                gl.SDLK_DOWN => meshes[0].rotation = meshes[0].rotation.subtract(&movement),
+                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
+                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
+                gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
+                gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
+                //gl.SDLK_UP => meshes[0].rotation = meshes[0].rotation.add(&movement),
+                //gl.SDLK_DOWN => meshes[0].rotation = meshes[0].rotation.subtract(&movement),
                 else => {},
             }
         }
@@ -402,8 +433,35 @@ test "window.pts" {
 const KeyState = struct.{
     new_key: bool,
     code: gl.SDL_Keycode,
+    mod: u16,
     ei: ie.EventInterface,
 };
+
+fn rotate(mod: u16, pos: math3d.Vec3, d: f32) math3d.Vec3 {
+    var new_pos = switch (mod) {
+        gl.KMOD_LCTRL => pos.add(&math3d.Vec3.init(rad(d), 0, 0)),
+        gl.KMOD_LSHIFT => pos.add(&math3d.Vec3.init(0, rad(d), 0)),
+        gl.KMOD_LALT => pos.add(&math3d.Vec3.init(0, 0, rad(d))),
+        else => pos,
+    };
+    if (DBG and !pos.approxEql(&new_pos, 4)) {
+        warn("rotate: new_pos={}\n", new_pos);
+    }
+    return new_pos;
+}
+
+fn translate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
+    var new_pos = switch (mod) {
+        gl.KMOD_LCTRL => pos.add(&math3d.Vec3.init(val, 0, 0)),
+        gl.KMOD_LSHIFT => pos.add(&math3d.Vec3.init(0, val, 0)),
+        gl.KMOD_LALT => pos.add(&math3d.Vec3.init(0, 0, val)),
+        else => pos,
+    };
+    if (DBG and !pos.eql(&new_pos)) {
+        warn("translate: new_pos={}\n", new_pos);
+    }
+    return new_pos;
+}
 
 fn handleKeyEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
     var pKey_state = @intToPtr(*KeyState, @ptrToInt(pThing));
@@ -411,6 +469,7 @@ fn handleKeyEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
         gl.SDL_KEYUP => {
             pKey_state.*.new_key = true;
             pKey_state.*.code = event.key.keysym.sym;
+            pKey_state.*.mod = event.key.keysym.mod;
         },
         else => {},
     }
