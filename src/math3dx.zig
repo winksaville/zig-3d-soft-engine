@@ -6,7 +6,7 @@ const std = @import("std");
 const math = std.math;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
-const approxEql = @import("../modules/zig-approxeql/approxeql.zig").approxEql;
+const ae = @import("../modules/zig-approxeql/approxeql.zig");
 
 const DBG = true;
 
@@ -47,25 +47,25 @@ pub const Mat4x4 = struct.{
 
     pub fn assert_matrix_eq(pSelf: *const Mat4x4, pOther: *const Mat4x4) void {
         const digits = 7;
-        assert(approxEql(pSelf.data[0][0], pOther.data[0][0], digits));
-        assert(approxEql(pSelf.data[0][1], pOther.data[0][1], digits));
-        assert(approxEql(pSelf.data[0][2], pOther.data[0][2], digits));
-        assert(approxEql(pSelf.data[0][3], pOther.data[0][3], digits));
+        assert(ae.approxEql(pSelf.data[0][0], pOther.data[0][0], digits));
+        assert(ae.approxEql(pSelf.data[0][1], pOther.data[0][1], digits));
+        assert(ae.approxEql(pSelf.data[0][2], pOther.data[0][2], digits));
+        assert(ae.approxEql(pSelf.data[0][3], pOther.data[0][3], digits));
 
-        assert(approxEql(pSelf.data[1][0], pOther.data[1][0], digits));
-        assert(approxEql(pSelf.data[1][1], pOther.data[1][1], digits));
-        assert(approxEql(pSelf.data[1][2], pOther.data[1][2], digits));
-        assert(approxEql(pSelf.data[1][3], pOther.data[1][3], digits));
+        assert(ae.approxEql(pSelf.data[1][0], pOther.data[1][0], digits));
+        assert(ae.approxEql(pSelf.data[1][1], pOther.data[1][1], digits));
+        assert(ae.approxEql(pSelf.data[1][2], pOther.data[1][2], digits));
+        assert(ae.approxEql(pSelf.data[1][3], pOther.data[1][3], digits));
 
-        assert(approxEql(pSelf.data[2][0], pOther.data[2][0], digits));
-        assert(approxEql(pSelf.data[2][1], pOther.data[2][1], digits));
-        assert(approxEql(pSelf.data[2][2], pOther.data[2][2], digits));
-        assert(approxEql(pSelf.data[2][3], pOther.data[2][3], digits));
+        assert(ae.approxEql(pSelf.data[2][0], pOther.data[2][0], digits));
+        assert(ae.approxEql(pSelf.data[2][1], pOther.data[2][1], digits));
+        assert(ae.approxEql(pSelf.data[2][2], pOther.data[2][2], digits));
+        assert(ae.approxEql(pSelf.data[2][3], pOther.data[2][3], digits));
 
-        assert(approxEql(pSelf.data[3][0], pOther.data[3][0], digits));
-        assert(approxEql(pSelf.data[3][1], pOther.data[3][1], digits));
-        assert(approxEql(pSelf.data[3][2], pOther.data[3][2], digits));
-        assert(approxEql(pSelf.data[3][3], pOther.data[3][3], digits));
+        assert(ae.approxEql(pSelf.data[3][0], pOther.data[3][0], digits));
+        assert(ae.approxEql(pSelf.data[3][1], pOther.data[3][1], digits));
+        assert(ae.approxEql(pSelf.data[3][2], pOther.data[3][2], digits));
+        assert(ae.approxEql(pSelf.data[3][3], pOther.data[3][3], digits));
     }
 
     /// Custom format routine for Mat4x4
@@ -246,6 +246,14 @@ pub const Vec3 = struct.{
         var ry = (v.z() * other.x()) - (other.z() * v.z());
         var rz = (v.x() * other.y()) - (other.x() * v.y());
         return Vec3.init(rx, ry, rz);
+    }
+
+    pub fn eql(v: *const Vec3, other: *const Vec3) bool {
+        return v.x() == other.x() and v.y() == other.y() and v.z() == other.z();
+    }
+
+    pub fn approxEql(v: *const Vec3, other: *const Vec3, digits: usize) bool {
+        return ae.approxEql(v.x(), other.x(), digits) and ae.approxEql(v.y(), other.y(), digits) and ae.approxEql(v.z(), other.z(), digits);
     }
 
     pub fn add(v: *const Vec3, other: *const Vec3) Vec3 {
@@ -452,7 +460,7 @@ test "math3d.translation" {
 /// Create a left-handed, look-at matrix
 /// BasedOn: https://github.com/sharpdx/SharpDX/blob/755cb46d59f4bfb94386ff2df3fceccc511c216b/Source/SharpDX.Mathematics/Matrix.cs#L2010
 pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
-    if (DBG) warn("\nmath3d.lookAtLh: eye {} target {}\n", eye, target);
+    if (DBG) warn("math3d.lookAtLh: eye {} target {}\n", eye, target);
 
     // TODO: lookAtLh: Why do I need to eye - target
     //
