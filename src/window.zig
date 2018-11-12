@@ -293,7 +293,7 @@ test "window.render.cube" {
 
     var movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
 
-    var camera_position = math3d.Vec3.init(0, 0, 10);
+    var camera_position = math3d.Vec3.init(0, 0, 3);
     var camera_target = math3d.Vec3.zero();
     var camera = Camera.init(camera_position, camera_target);
 
@@ -405,7 +405,6 @@ test "window.world_to_screen" {
     }
 }
 
-
 fn rad(d: var) @typeOf(d) {
     const T = @typeOf(d);
     return d * T(math.pi) / T(180.0);
@@ -433,8 +432,8 @@ test "window.pts" {
 
         // Horizitonal line .1 unit above 0,0,0
         //mesh = try Mesh.init(pAllocator, "mesh1", 2);
-        //mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.0);
-        //mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.0);
+        //mesh.vertices[0] = math3d.vec3(0.0, 0.1, 0.0);
+        //mesh.vertices[1] = math3d.vec3(0.0, -0.1, 0.0);
 
         // Box
         mesh = try Mesh.init(pAllocator, "mesh1", 4);
@@ -457,9 +456,9 @@ test "window.pts" {
         var meshes = []Mesh.{mesh};
 
         //var movement: math3d.Vec3 = undefined;
-        //movement = math3d.Vec3.init(rad(f32(2)), rad(f32(2)), rad(f32(2)));
+        //movement = math3d.Vec3.init(rad(f32(2)), rad(f32(2)), 0));
 
-        var camera_position = math3d.Vec3.init(0, 0, 100);
+        var camera_position = math3d.Vec3.init(0, 0, 20);
         var camera_target = math3d.Vec3.zero();
         var camera = Camera.init(camera_position, camera_target);
 
@@ -486,8 +485,8 @@ test "window.pts" {
 
             if (DBG or DBG1 or DBG2) warn("\n");
 
-            if (DBG1) warn("camera={.5}:{.5}:{.5}\n", camera.position.x(), camera.position.y(), camera.position.z());
-            if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
+            if (DBG1) warn("camera={}\n", &camera.position);
+            if (DBG1) warn("rotation={}\n", meshes[0].rotation);
             window.render(&camera, &meshes);
 
             var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
@@ -524,13 +523,13 @@ const KeyState = struct.{
     ei: ie.EventInterface,
 };
 
-fn rotate(mod: u16, pos: math3d.Vec3, d: f32) math3d.Vec3 {
-    var new_pos = switch (mod) {
-        gl.KMOD_LCTRL => pos.add(&math3d.Vec3.init(rad(d), 0, 0)),
-        gl.KMOD_LSHIFT => pos.add(&math3d.Vec3.init(0, rad(d), 0)),
-        gl.KMOD_LALT => pos.add(&math3d.Vec3.init(0, 0, rad(d))),
-        else => pos,
-    };
+fn rotate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
+    var r = rad(val);
+    if (DBG) warn("rotate: mod={x} pos={} rad(val)={}\n", mod, pos, r);
+    var new_pos = pos;
+    if ((mod & gl.KMOD_LCTRL) != 0) { new_pos = pos.add(&math3d.Vec3.init(r, 0, 0)); if (DBG) warn("rotate: add X\n"); }
+    if ((mod & gl.KMOD_LSHIFT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, r, 0)); if (DBG) warn("rotate: add Y\n"); }
+    if ((mod & gl.KMOD_LALT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, 0, r)); if (DBG) warn("rotate: add Z\n"); }
     if (DBG and !pos.approxEql(&new_pos, 4)) {
         warn("rotate: new_pos={}\n", new_pos);
     }
@@ -538,12 +537,11 @@ fn rotate(mod: u16, pos: math3d.Vec3, d: f32) math3d.Vec3 {
 }
 
 fn translate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
-    var new_pos = switch (mod) {
-        gl.KMOD_LCTRL => pos.add(&math3d.Vec3.init(val, 0, 0)),
-        gl.KMOD_LSHIFT => pos.add(&math3d.Vec3.init(0, val, 0)),
-        gl.KMOD_LALT => pos.add(&math3d.Vec3.init(0, 0, val)),
-        else => pos,
-    };
+    if (DBG) warn("translate: pos={}\n", pos);
+    var new_pos = pos;
+    if ((mod & gl.KMOD_LCTRL) != 0) { new_pos = pos.add(&math3d.Vec3.init(val, 0, 0)); if (DBG) warn("translate: add X\n"); }
+    if ((mod & gl.KMOD_LSHIFT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, val, 0)); if (DBG) warn("translate: add Y\n"); }
+    if ((mod & gl.KMOD_LALT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, 0, val)); if (DBG) warn("translate: add Z\n"); }
     if (DBG and !pos.eql(&new_pos)) {
         warn("translate: new_pos={}\n", new_pos);
     }
