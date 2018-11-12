@@ -142,8 +142,8 @@ pub const Window = struct.{
         // The transformed coord is based on a coordinate system
         // where the origin is the center of the screen. Convert
         // them to coordindates where x:0, y:0 is the upper left.
-        var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
-        var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
+        var x = (point.x() + 1) * 0.5 * pSelf.widthf;
+        var y = (1 - ((point.y() + 1) * 0.5)) * pSelf.heightf;
         if (DBG) warn("project:   centered x={.3} y={.3}\n", x, y);
         return math3d.Vec2.init(x, y);
     }
@@ -224,22 +224,22 @@ test "window.project" {
     assert(r.x() == window.widthf / 2.0);
     assert(r.y() == window.heightf / 2.0);
 
-    v1 = math3d.Vec3.init(-0.5, 0.5, 0);
+    v1 = math3d.Vec3.init(-1.0, 1.0, 0);
     r = window.project(v1, &math3d.mat4x4_identity);
     assert(r.x() == 0);
     assert(r.y() == 0);
 
-    v1 = math3d.Vec3.init(0.5, -0.5, 0);
+    v1 = math3d.Vec3.init(1.0, -1.0, 0);
     r = window.project(v1, &math3d.mat4x4_identity);
     assert(r.x() == window.widthf);
     assert(r.y() == window.heightf);
 
-    v1 = math3d.Vec3.init(-0.5, -0.5, 0);
+    v1 = math3d.Vec3.init(-1.0, -1.0, 0);
     r = window.project(v1, &math3d.mat4x4_identity);
     assert(r.x() == 0);
     assert(r.y() == window.heightf);
 
-    v1 = math3d.Vec3.init(0.5, 0.5, 0);
+    v1 = math3d.Vec3.init(1.0, 1.0, 0);
     r = window.project(v1, &math3d.mat4x4_identity);
     assert(r.x() == window.widthf);
     assert(r.y() == 0);
@@ -318,6 +318,93 @@ test "window.render.cube" {
         if (timer.read() > end_time) break;
     }
 }
+
+test "window.world_to_screen" {
+    if (DBG) warn("\n");
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    const T = f32;
+    const fov: T = 90;
+    const widthf: T = 512;
+    const heightf: T = 512;
+    const width: u32 = @floatToInt(u32, widthf);
+    const height: u32 = @floatToInt(u32, heightf);
+    const aspect: T = widthf / heightf;
+    const znear: T = 0.01;
+    const zfar: T = 1.0;
+
+    var window = try Window.init(pAllocator, width, height, "testWindow");
+    defer window.deinit();
+
+    var camera_to_perspective_matrix = math3d.perspectiveFovRh(rad(fov), aspect, znear, zfar);
+
+    var world_to_camera_matrix = math3d.mat4x4_identity;
+    world_to_camera_matrix.data[3][2] = -2;
+
+    var world_vertexs = []math3d.Vec3.{
+        math3d.Vec3.init(0, 1.0, 0),
+        math3d.Vec3.init(0, -1.0, 0),
+        math3d.Vec3.init(0, 1.0, 0.2),
+        math3d.Vec3.init(0, -1.0, -0.2),
+    };
+    var expected_camera_vertexs = []math3d.Vec3.{
+        math3d.Vec3.init(0, 1.0, -2),
+        math3d.Vec3.init(0, -1.0, -2),
+        math3d.Vec3.init(0, 1.0, -1.8),
+        math3d.Vec3.init(0, -1.0, -2.2),
+    };
+    var expected_projected_vertexs = []math3d.Vec3.{
+        math3d.Vec3.init(0, 0.5, 1.0050504),
+        math3d.Vec3.init(0, -0.5, 1.0050504),
+        math3d.Vec3.init(0, 0.5555555, 1.0044893),
+        math3d.Vec3.init(0, -0.4545454, 1.0055095),
+    };
+    var expected_screen_vertexs = [][2]u32.{
+        []u32.{256, 128},
+        []u32.{256, 384},
+        []u32.{256, 113},
+        []u32.{256, 372},
+    };
+
+    // Loop until end_time is reached but always loop once :)
+    var msf: u64 = time.ns_per_s / time.ms_per_s;
+    var timer = try time.Timer.start();
+    var end_time: u64 = 0;
+    if (DBG or DBG1 or DBG2) end_time += (2000 * msf);
+    while (true) {
+        window.clear();
+
+        //if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
+        //window.render(&camera, &meshes);
+
+        for (world_vertexs) |world_vert, i| {
+            if (DBG) warn("world_vert[{}]  = {}\n", i, &world_vert);
+
+            var camera_vert = world_vert.transform(&world_to_camera_matrix);
+            if (DBG) warn("camera_vert    = {}\n", camera_vert);
+            assert(camera_vert.approxEql(&expected_camera_vertexs[i], 6));
+
+            var projected_vert = camera_vert.transform(&camera_to_perspective_matrix);
+            if (DBG) warn("projected_vert = {}\n", projected_vert);
+            assert(projected_vert.approxEql(&expected_projected_vertexs[i], 6));
+
+            var point = window.project(projected_vert, &math3d.mat4x4_identity);
+            window.drawPoint(point, 0xffff00ff);
+            assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == 0xffff00ff);
+        }
+
+        var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+        window.drawPoint(center, 0xffffffff);
+
+        window.present();
+
+        if (timer.read() > end_time) break;
+    }
+}
+
 
 fn rad(d: var) @typeOf(d) {
     const T = @typeOf(d);
