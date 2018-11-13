@@ -171,21 +171,16 @@ pub const Window = struct.{
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
         var perspective_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        //var perspective_matrix = math3d.mat4x4_identity;
         if (DBG) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", deg(fov), znear, zfar, &perspective_matrix);
 
         for (meshes) |mesh| {
             var rotation_matrix = math3d.rotationYawPitchRollVec3(mesh.rotation);
-            if (DBG) warn("rotation_matrix:\n{}", &rotation_matrix);
             var translation_matrix = math3d.translationVec3(mesh.position);
-            if (DBG) warn("translation_matrix:\n{}", &translation_matrix);
             var world_matrix = translation_matrix.mult(&rotation_matrix);
-            //var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
             if (DBG) warn("world_matrix:\n{}", &world_matrix);
 
             var world_to_view_matrix = world_matrix.mult(&view_matrix);
-            var transform_matrix = perspective_matrix.mult(&world_to_view_matrix);
-            //var transform_matrix = perspective_matrix.mult(&view_matrix.mult(&world_matrix));
+            var transform_matrix = world_to_view_matrix.mult(&perspective_matrix);
             if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
 
             for (mesh.vertices) |vertex, i| {
