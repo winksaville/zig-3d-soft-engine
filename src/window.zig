@@ -130,7 +130,16 @@ pub const Window = struct.{
         _ = gl.SDL_RenderPresent(pSelf.sdl_renderer);
     }
 
-    /// Project takes a 3D coord and converts it to a 2D coordinate
+    pub fn pointToScreen(pSelf: *Self, pos_x: f32, pos_y: f32) math3d.Vec2 {
+        // The transformed coord is based on a coordinate system
+        // where the origin is the center of the screen. Convert
+        // them to coordindates where x:0, y:0 is the upper left.
+        var x = (pos_x + 1) * 0.5 * pSelf.widthf;
+        var y = (1 - ((pos_y + 1) * 0.5)) * pSelf.heightf;
+        return math3d.Vec2.init(x, y);
+    }
+
+    /// Project takes a 3D coord and converts it to a 2D point
     /// using the transform matrix.
     pub fn project(pSelf: *Self, coord: math3d.Vec3, transMat: *const math3d.Mat4x4) math3d.Vec2 {
         if (DBG) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
@@ -139,13 +148,7 @@ pub const Window = struct.{
         var point = coord.transform(transMat);
         if (DBG) warn("project: transformed point={}\n", &point);
 
-        // The transformed coord is based on a coordinate system
-        // where the origin is the center of the screen. Convert
-        // them to coordindates where x:0, y:0 is the upper left.
-        var x = (point.x() + 1) * 0.5 * pSelf.widthf;
-        var y = (1 - ((point.y() + 1) * 0.5)) * pSelf.heightf;
-        if (DBG) warn("project:   centered x={.3} y={.3}\n", x, y);
-        return math3d.Vec2.init(x, y);
+        return pSelf.pointToScreen(point.x(), point.y());
     }
 
     /// Draw a Vec2 point clipping it if its outside the screen
@@ -167,15 +170,22 @@ pub const Window = struct.{
         var fov: f32 = rad(f32(90));
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
-        var projection_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        //var projection_matrix = math3d.mat4x4_identity;
-        if (DBG) warn("projection_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", deg(fov), znear, zfar, &projection_matrix);
+        var perspective_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        //var perspective_matrix = math3d.mat4x4_identity;
+        if (DBG) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", deg(fov), znear, zfar, &perspective_matrix);
 
         for (meshes) |mesh| {
-            var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
+            var rotation_matrix = math3d.rotationYawPitchRollVec3(mesh.rotation);
+            if (DBG) warn("rotation_matrix:\n{}", &rotation_matrix);
+            var translation_matrix = math3d.translationVec3(mesh.position);
+            if (DBG) warn("translation_matrix:\n{}", &translation_matrix);
+            var world_matrix = translation_matrix.mult(&rotation_matrix);
+            //var world_matrix = math3d.translationVec3(mesh.position).mult(&math3d.rotationYawPitchRollVec3(mesh.rotation));
             if (DBG) warn("world_matrix:\n{}", &world_matrix);
 
-            var transform_matrix = projection_matrix.mult(&view_matrix.mult(&world_matrix));
+            var world_to_view_matrix = world_matrix.mult(&view_matrix);
+            var transform_matrix = perspective_matrix.mult(&world_to_view_matrix);
+            //var transform_matrix = perspective_matrix.mult(&view_matrix.mult(&world_matrix));
             if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
 
             for (mesh.vertices) |vertex, i| {
@@ -327,11 +337,11 @@ test "window.world_to_screen" {
     var pAllocator = &arena_allocator.allocator;
 
     const T = f32;
-    const fov: T = 90;
     const widthf: T = 512;
     const heightf: T = 512;
     const width: u32 = @floatToInt(u32, widthf);
     const height: u32 = @floatToInt(u32, heightf);
+    const fov: T = 90;
     const aspect: T = widthf / heightf;
     const znear: T = 0.01;
     const zfar: T = 1.0;
@@ -430,17 +440,17 @@ test "window.pts" {
 
         var mesh: Mesh = undefined;
 
-        // Horizitonal line .1 unit above 0,0,0
-        //mesh = try Mesh.init(pAllocator, "mesh1", 2);
-        //mesh.vertices[0] = math3d.vec3(0.0, 0.1, 0.0);
-        //mesh.vertices[1] = math3d.vec3(0.0, -0.1, 0.0);
+        // vertical line .5 unit above 0,0,0
+        mesh = try Mesh.init(pAllocator, "mesh1", 2);
+        mesh.vertices[0] = math3d.vec3(0.0, 0.5, 0.0);
+        mesh.vertices[1] = math3d.vec3(0.0, -0.5, 0.0);
 
         // Box
-        mesh = try Mesh.init(pAllocator, "mesh1", 4);
-        mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.0);
-        mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.0);
-        mesh.vertices[2] = math3d.vec3(0.1, -0.1, 0.0);
-        mesh.vertices[3] = math3d.vec3(-0.1, -0.1, 0.0);
+        //mesh = try Mesh.init(pAllocator, "mesh1", 4);
+        //mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.0);
+        //mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.0);
+        //mesh.vertices[2] = math3d.vec3(0.1, -0.1, 0.0);
+        //mesh.vertices[3] = math3d.vec3(-0.1, -0.1, 0.0);
 
         // Cube
         //mesh = try Mesh.init(pAllocator, "mesh1", 8);
@@ -458,7 +468,7 @@ test "window.pts" {
         //var movement: math3d.Vec3 = undefined;
         //movement = math3d.Vec3.init(rad(f32(2)), rad(f32(2)), 0));
 
-        var camera_position = math3d.Vec3.init(0, 0, 20);
+        var camera_position = math3d.Vec3.init(0, 0, -2);
         var camera_target = math3d.Vec3.zero();
         var camera = Camera.init(camera_position, camera_target);
 
