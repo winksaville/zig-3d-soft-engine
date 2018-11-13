@@ -8,7 +8,7 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const ae = @import("../modules/zig-approxeql/approxeql.zig");
 
-const DBG = true;
+const DBG = false;
 
 pub const Mat4x4 = struct.{
     const Self = @This();
@@ -265,13 +265,17 @@ pub const Vec3 = struct.{
     }
 
     /// Transform the v using m returning a new Vec3.
-    /// BasedOn: https://github.com/sharpdx/SharpDX/blob/755cb46d59f4bfb94386ff2df3fceccc511c216b/Source/SharpDX.Mathematics/Vector3.cs#L1388
+    /// BasedOn: https://www.scratchapixel.com/code.php?id=4&origin=/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix
     pub fn transform(v: *const Vec3, m: *const Mat4x4) Vec3 {
         const rx = (v.x() * m.data[0][0]) + (v.y() * m.data[1][0]) + (v.z() * m.data[2][0]) + m.data[3][0];
         const ry = (v.x() * m.data[0][1]) + (v.y() * m.data[1][1]) + (v.z() * m.data[2][1]) + m.data[3][1];
         const rz = (v.x() * m.data[0][2]) + (v.y() * m.data[1][2]) + (v.z() * m.data[2][2]) + m.data[3][2];
-        const rw = 1.0 / ((v.x() * m.data[0][3]) + (v.y() * m.data[1][3]) + (v.z() * m.data[2][3]) + m.data[3][3]);
+        var rw = (v.x() * m.data[0][3]) + (v.y() * m.data[1][3]) + (v.z() * m.data[2][3]) + m.data[3][3];
 
+        if (rw != 1) {
+            rw = 1.0 / rw;
+            if (DBG) warn("transform: rw != 1 v={} m:\n{}\n", v, m);
+        }
         return Vec3.init(rx * rw, ry * rw, rz * rw);
     }
 
