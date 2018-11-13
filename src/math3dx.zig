@@ -457,19 +457,11 @@ test "math3d.translation" {
     m.assert_matrix_eq(&expected);
 }
 
-/// Create a left-handed, look-at matrix
-/// BasedOn: https://github.com/sharpdx/SharpDX/blob/755cb46d59f4bfb94386ff2df3fceccc511c216b/Source/SharpDX.Mathematics/Matrix.cs#L2010
+/// Create look-at matrix
 pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
     if (DBG) warn("math3d.lookAtLh: eye {} target {}\n", eye, target);
 
-    // TODO: lookAtLh: Why do I need to eye - target
-    //
-    // In the SharpDx.Mathematics/Matrix.cs code they
-    // they set zaxis to target - eye but reversing the
-    // order, eye - target, gives "correct" results
-    // in test "mathed.lookAtLh". Certainly its a problem
-    // on my side, but for now we'll use eye - target.
-    var zaxis = eye.subtract(target).normalize(); // target.subtract(eye).normalize();
+    var zaxis = target.subtract(eye).normalize();
     var xaxis = up.cross(&zaxis).normalize();
     var yaxis = zaxis.cross(&xaxis);
 
@@ -489,7 +481,7 @@ pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
         []f32.{ 0, 0, 0, 1 },
     } };
 
-    var result = rmo;
+    var result = cmo;
     if (DBG) warn("math3d.lookAtLh: result\n{}", &result);
     return result;
 }
@@ -497,23 +489,26 @@ pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
 test "math3d.lookAtLh" {
     var width: f32 = 640;
     var height: f32 = 480;
-    var pos_x: f32 = undefined;
-    var pos_y: f32 = undefined;
+    var scn_x: f32 = undefined;
+    var scn_y: f32 = undefined;
+    var coord: Vec3 = undefined;
+    var screen: Vec2 = undefined;
+    var point: Vec2 = undefined;
 
-    var eye = Vec3.init(0, 0, 10);
+    var eye = Vec3.init(0, 0, -10);
     var target = Vec3.init(0, 0, 0);
     var view_matrix = lookAtLh(&eye, &target, &Vec3.unitY());
 
     const expected = Mat4x4.{ .data = [][4]f32.{
         []f32.{ 1.00000, 0.00000, 0.00000, 0.00000 },
         []f32.{ 0.00000, 1.00000, 0.00000, 0.00000 },
-        []f32.{ 0.00000, 0.00000, 1.00000, -10.00000 },
-        []f32.{ 0.00000, 0.00000, 0.00000, 1.00000 },
+        []f32.{ 0.00000, 0.00000, 1.00000, 0.00000 },
+        []f32.{ 0.00000, 0.00000, 10.00000, 1.00000 },
     } };
     view_matrix.assert_matrix_eq(&expected);
 
-    var coord = Vec3.init(0, 0, 0);
-    var screen = project(width, height, coord, &view_matrix);
+    coord = Vec3.init(0, 0, 0);
+    screen = project(width, height, coord, &view_matrix);
     if (DBG) warn("math3d.lookAtLh: coord={} screen={}\n", &coord, &screen);
     assert(screen.x() == 320);
     assert(screen.y() == 240);
@@ -521,33 +516,37 @@ test "math3d.lookAtLh" {
     coord = Vec3.init(0.1, 0.1, 0);
     screen = project(width, height, coord, &view_matrix);
     if (DBG) warn("math3d.lookAtLh: coord={} screen={}\n", &coord, &screen);
-    pos_x = 0.1 * width;
-    pos_y = 0.1 * height;
-    assert(screen.x() == width/2.0 + pos_x);
-    assert(screen.y() == height/2.0 - pos_y);
+    point = pointToScreen(width, height, 0.1, 0.1);
+    if (DBG) warn("math3d.lookAtLh: point={}\n", &point);
+    assert(screen.x() == point.x());
+    assert(screen.y() == point.y());
 
     coord = Vec3.init(-0.1, -0.1, 0);
     screen = project(width, height, coord, &view_matrix);
     if (DBG) warn("math3d.lookAtLh: coord={} screen={}\n", &coord, &screen);
-    assert(screen.x() == width/2.0 - pos_x);
-    assert(screen.y() == height/2.0 + pos_y);
+    point = pointToScreen(width, height, -0.1, -0.1);
+    if (DBG) warn("math3d.lookAtLh: point={}\n", &point);
+    assert(screen.x() == point.x());
+    assert(screen.y() == point.y());
 }
 
-pub fn project(widthf: f32, heightf: f32, coord: Vec3, transMat: *const Mat4x4) Vec2 {
+fn pointToScreen(widthf: f32, heightf: f32, pos_x: f32, pos_y: f32) Vec2 {
+    // The transformed coord is based on a coordinate system
+    // where the origin is the center of the screen. Convert
+    // them to coordindates where x:0, y:0 is the upper left.
+    var x = (pos_x + 1) * 0.5 * widthf;
+    var y = (1 - ((pos_y + 1) * 0.5)) * heightf;
+    return Vec2.init(x, y);
+}
+
+fn project(widthf: f32, heightf: f32, coord: Vec3, transMat: *const Mat4x4) Vec2 {
     if (DBG) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, widthf, heightf);
 
     // Transform coord in 3D
     var point = coord.transform(transMat);
     if (DBG) warn("project: transformed point={}\n", &point);
 
-    // The transformed coord is based on a coordinate system
-    // where the origin is the center of the screen. Convert
-    // them to coordindates where x:0, y:0 is the upper left.
-    var x = (point.x() * widthf) + (widthf / 2.0);
-    var y = (-point.y() * heightf) + (heightf / 2.0);
-    var centered = Vec2.init(x, y);
-    if (DBG) warn("project:   centered={}\n", &centered);
-    return centered;
+    return pointToScreen(widthf, heightf, point.x(), point.y());
 }
 
 
@@ -734,7 +733,7 @@ test "math3d.world_to_screen" {
     const aspect: T = widthf / heightf;
     const znear: T = 0.01;
     const zfar: T = 1.0;
-    var camera_to_perspective_matrix = perspectiveFovRh(fov * math.pi/180, aspect, znear, zfar);
+    var camera_to_perspective_matrix = perspectiveFovRh(fov * math.pi / 180, aspect, znear, zfar);
 
     var world_to_camera_matrix = mat4x4_identity;
     world_to_camera_matrix.data[3][2] = -2;
