@@ -5,13 +5,13 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
-pub const EventResult = enum.{
+pub const EventResult = enum {
     NoEvents,
     Continue,
     Quit,
 };
 
-pub const EventInterface = struct.{
+pub const EventInterface = struct {
     event: gl.SDL_Event,
     handleKeyEvent: fn (pThing: *c_void, event: *gl.SDL_Event) EventResult,
     handleMouseEvent: fn (pThing: *c_void, event: *gl.SDL_Event) EventResult,
@@ -59,20 +59,20 @@ fn handleOtherEvent(pThing: *c_void, event: *gl.SDL_Event) EventResult {
     return EventResult.Continue;
 }
 
-const Thing = struct.{
+const Thing = struct {
     key_count: usize,
     mouse_count: usize,
     other_count: usize,
 };
 
 test "inputEvents" {
-    var thing = Thing.{
+    var thing = Thing{
         .key_count = 0,
         .mouse_count = 0,
         .other_count = 0,
     };
 
-    var ei = EventInterface.{
+    var ei = EventInterface{
         .event = undefined,
         .handleKeyEvent = handleKeyEvent,
         .handleMouseEvent = handleMouseEvent,

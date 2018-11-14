@@ -17,7 +17,7 @@ const DBG = true;
 const DBG1 = true;
 const DBG2 = true;
 
-pub const Window = struct.{
+pub const Window = struct {
     const Self = @This();
 
     pAllocator: *Allocator,
@@ -35,7 +35,7 @@ pub const Window = struct.{
     sdl_texture: *gl.SDL_Texture,
 
     pub fn init(pAllocator: *Allocator, width: usize, height: usize, name: []const u8) !Self {
-        var self = Self.{
+        var self = Self{
             .pAllocator = pAllocator,
             .bg_color = undefined,
             .width = width,
@@ -294,7 +294,7 @@ test "window.render.cube" {
     mesh.vertices[4] = math3d.vec3(-1, -1, -1);
     mesh.vertices[5] = math3d.vec3(-1, 1, -1);
 
-    var meshes = []Mesh.{mesh};
+    var meshes = []Mesh{mesh};
 
     var movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
 
@@ -349,29 +349,29 @@ test "window.world_to_screen" {
     var world_to_camera_matrix = math3d.mat4x4_identity;
     world_to_camera_matrix.data[3][2] = -2;
 
-    var world_vertexs = []math3d.Vec3.{
+    var world_vertexs = []math3d.Vec3{
         math3d.Vec3.init(0, 1.0, 0),
         math3d.Vec3.init(0, -1.0, 0),
         math3d.Vec3.init(0, 1.0, 0.2),
         math3d.Vec3.init(0, -1.0, -0.2),
     };
-    var expected_camera_vertexs = []math3d.Vec3.{
+    var expected_camera_vertexs = []math3d.Vec3{
         math3d.Vec3.init(0, 1.0, -2),
         math3d.Vec3.init(0, -1.0, -2),
         math3d.Vec3.init(0, 1.0, -1.8),
         math3d.Vec3.init(0, -1.0, -2.2),
     };
-    var expected_projected_vertexs = []math3d.Vec3.{
+    var expected_projected_vertexs = []math3d.Vec3{
         math3d.Vec3.init(0, 0.5, 1.0050504),
         math3d.Vec3.init(0, -0.5, 1.0050504),
         math3d.Vec3.init(0, 0.5555555, 1.0044893),
         math3d.Vec3.init(0, -0.4545454, 1.0055095),
     };
-    var expected_screen_vertexs = [][2]u32.{
-        []u32.{256, 128},
-        []u32.{256, 384},
-        []u32.{256, 113},
-        []u32.{256, 372},
+    var expected_screen_vertexs = [][2]u32{
+        []u32{ 256, 128 },
+        []u32{ 256, 384 },
+        []u32{ 256, 113 },
+        []u32{ 256, 372 },
     };
 
     // Loop until end_time is reached but always loop once :)
@@ -458,7 +458,7 @@ test "window.pts" {
         //mesh.vertices[6] = math3d.vec3(0.1, -0.1, -0.1);
         //mesh.vertices[7] = math3d.vec3(-0.1, -0.1, -0.1);
 
-        var meshes = []Mesh.{mesh};
+        var meshes = []Mesh{mesh};
 
         //var movement: math3d.Vec3 = undefined;
         //movement = math3d.Vec3.init(rad(f32(2)), rad(f32(2)), 0));
@@ -472,11 +472,11 @@ test "window.pts" {
         var timer = try time.Timer.start();
         var end_time: u64 = 0;
 
-        var ks = KeyState.{
+        var ks = KeyState{
             .new_key = false,
             .code = undefined,
             .mod = undefined,
-            .ei = ie.EventInterface.{
+            .ei = ie.EventInterface{
                 .event = undefined,
                 .handleKeyEvent = handleKeyEvent,
                 .handleMouseEvent = IgnoreEvent,
@@ -521,7 +521,7 @@ test "window.pts" {
     }
 }
 
-const KeyState = struct.{
+const KeyState = struct {
     new_key: bool,
     code: gl.SDL_Keycode,
     mod: u16,
@@ -532,9 +532,18 @@ fn rotate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
     var r = rad(val);
     if (DBG) warn("rotate: mod={x} pos={} rad(val)={}\n", mod, pos, r);
     var new_pos = pos;
-    if ((mod & gl.KMOD_LCTRL) != 0) { new_pos = pos.add(&math3d.Vec3.init(r, 0, 0)); if (DBG) warn("rotate: add X\n"); }
-    if ((mod & gl.KMOD_LSHIFT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, r, 0)); if (DBG) warn("rotate: add Y\n"); }
-    if ((mod & gl.KMOD_LALT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, 0, r)); if (DBG) warn("rotate: add Z\n"); }
+    if ((mod & gl.KMOD_LCTRL) != 0) {
+        new_pos = pos.add(&math3d.Vec3.init(r, 0, 0));
+        if (DBG) warn("rotate: add X\n");
+    }
+    if ((mod & gl.KMOD_LSHIFT) != 0) {
+        new_pos = pos.add(&math3d.Vec3.init(0, r, 0));
+        if (DBG) warn("rotate: add Y\n");
+    }
+    if ((mod & gl.KMOD_LALT) != 0) {
+        new_pos = pos.add(&math3d.Vec3.init(0, 0, r));
+        if (DBG) warn("rotate: add Z\n");
+    }
     if (DBG and !pos.approxEql(&new_pos, 4)) {
         warn("rotate: new_pos={}\n", new_pos);
     }
@@ -544,9 +553,18 @@ fn rotate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
 fn translate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
     if (DBG) warn("translate: pos={}\n", pos);
     var new_pos = pos;
-    if ((mod & gl.KMOD_LCTRL) != 0) { new_pos = pos.add(&math3d.Vec3.init(val, 0, 0)); if (DBG) warn("translate: add X\n"); }
-    if ((mod & gl.KMOD_LSHIFT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, val, 0)); if (DBG) warn("translate: add Y\n"); }
-    if ((mod & gl.KMOD_LALT) != 0) { new_pos = pos.add(&math3d.Vec3.init(0, 0, val)); if (DBG) warn("translate: add Z\n"); }
+    if ((mod & gl.KMOD_LCTRL) != 0) {
+        new_pos = pos.add(&math3d.Vec3.init(val, 0, 0));
+        if (DBG) warn("translate: add X\n");
+    }
+    if ((mod & gl.KMOD_LSHIFT) != 0) {
+        new_pos = pos.add(&math3d.Vec3.init(0, val, 0));
+        if (DBG) warn("translate: add Y\n");
+    }
+    if ((mod & gl.KMOD_LALT) != 0) {
+        new_pos = pos.add(&math3d.Vec3.init(0, 0, val));
+        if (DBG) warn("translate: add Z\n");
+    }
     if (DBG and !pos.eql(&new_pos)) {
         warn("translate: new_pos={}\n", new_pos);
     }

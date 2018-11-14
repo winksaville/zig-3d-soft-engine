@@ -9,7 +9,7 @@ const gl = @import("../modules/zig-sdl2/src/index.zig");
 const ie = @import("input_events.zig");
 const wdw = @import("window.zig");
 
-const WindowState = struct.{
+const WindowState = struct {
     window: wdw.Window,
     quit: bool,
     leftMouseButtonDown: bool,
@@ -70,11 +70,11 @@ pub fn main() u8 {
     defer arena_allocator.deinit();
     var pAllocator = &arena_allocator.allocator;
 
-    var ws = WindowState.{
+    var ws = WindowState{
         .window = undefined,
         .quit = false,
         .leftMouseButtonDown = false,
-        .ei = ie.EventInterface.{
+        .ei = ie.EventInterface{
             .event = undefined,
             .handleKeyEvent = handleKeyEvent,
             .handleMouseEvent = handleMouseEvent,

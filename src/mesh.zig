@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const math = std.math;
 const math3d = @import("math3dx.zig");
 
-pub const Mesh = struct.{
+pub const Mesh = struct {
     const Self = @This();
 
     pub name: []const u8,
@@ -13,8 +13,8 @@ pub const Mesh = struct.{
     pub rotation: math3d.Vec3,
     pub vertices: []math3d.Vec3,
 
-    pub fn init(pAllocator: *Allocator, name:[]const u8, vertices_count: usize) !Self {
-        return Self.{
+    pub fn init(pAllocator: *Allocator, name: []const u8, vertices_count: usize) !Self {
+        return Self{
             .name = name,
             .position = math3d.vec3(0.0, 0.0, 0.0),
             .rotation = math3d.vec3(0.0, 0.0, 0.0),
@@ -48,4 +48,3 @@ test "mesh" {
     mesh.vertices[6] = math3d.vec3(1, -1, 1);
     mesh.vertices[7] = math3d.vec3(1, -1, -1);
 }
-

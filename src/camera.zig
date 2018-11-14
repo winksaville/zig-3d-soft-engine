@@ -4,14 +4,14 @@ const warn = std.debug.warn;
 const math = std.math;
 const math3d = @import("math3dx.zig");
 
-pub const Camera = struct.{
+pub const Camera = struct {
     const Self = @This();
 
     pub position: math3d.Vec3,
     pub target: math3d.Vec3,
 
     pub fn init(position: math3d.Vec3, target: math3d.Vec3) Self {
-        return Self.{
+        return Self{
             .position = position,
             .target = target,
         };

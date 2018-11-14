@@ -10,33 +10,33 @@ const ae = @import("../modules/zig-approxeql/approxeql.zig");
 
 const DBG = false;
 
-pub const Mat4x4 = struct.{
+pub const Mat4x4 = struct {
     const Self = @This();
 
     data: [4][4]f32,
 
     /// matrix multiplication
     pub fn mult(m: *const Mat4x4, other: *const Mat4x4) Mat4x4 {
-        return Mat4x4.{ .data = [][4]f32.{
-            []f32.{
+        return Mat4x4{ .data = [][4]f32{
+            []f32{
                 m.data[0][0] * other.data[0][0] + m.data[0][1] * other.data[1][0] + m.data[0][2] * other.data[2][0] + m.data[0][3] * other.data[3][0],
                 m.data[0][0] * other.data[0][1] + m.data[0][1] * other.data[1][1] + m.data[0][2] * other.data[2][1] + m.data[0][3] * other.data[3][1],
                 m.data[0][0] * other.data[0][2] + m.data[0][1] * other.data[1][2] + m.data[0][2] * other.data[2][2] + m.data[0][3] * other.data[3][2],
                 m.data[0][0] * other.data[0][3] + m.data[0][1] * other.data[1][3] + m.data[0][2] * other.data[2][3] + m.data[0][3] * other.data[3][3],
             },
-            []f32.{
+            []f32{
                 m.data[1][0] * other.data[0][0] + m.data[1][1] * other.data[1][0] + m.data[1][2] * other.data[2][0] + m.data[1][3] * other.data[3][0],
                 m.data[1][0] * other.data[0][1] + m.data[1][1] * other.data[1][1] + m.data[1][2] * other.data[2][1] + m.data[1][3] * other.data[3][1],
                 m.data[1][0] * other.data[0][2] + m.data[1][1] * other.data[1][2] + m.data[1][2] * other.data[2][2] + m.data[1][3] * other.data[3][2],
                 m.data[1][0] * other.data[0][3] + m.data[1][1] * other.data[1][3] + m.data[1][2] * other.data[2][3] + m.data[1][3] * other.data[3][3],
             },
-            []f32.{
+            []f32{
                 m.data[2][0] * other.data[0][0] + m.data[2][1] * other.data[1][0] + m.data[2][2] * other.data[2][0] + m.data[2][3] * other.data[3][0],
                 m.data[2][0] * other.data[0][1] + m.data[2][1] * other.data[1][1] + m.data[2][2] * other.data[2][1] + m.data[2][3] * other.data[3][1],
                 m.data[2][0] * other.data[0][2] + m.data[2][1] * other.data[1][2] + m.data[2][2] * other.data[2][2] + m.data[2][3] * other.data[3][2],
                 m.data[2][0] * other.data[0][3] + m.data[2][1] * other.data[1][3] + m.data[2][2] * other.data[2][3] + m.data[2][3] * other.data[3][3],
             },
-            []f32.{
+            []f32{
                 m.data[3][0] * other.data[0][0] + m.data[3][1] * other.data[1][0] + m.data[3][2] * other.data[2][0] + m.data[3][3] * other.data[3][0],
                 m.data[3][0] * other.data[0][1] + m.data[3][1] * other.data[1][1] + m.data[3][2] * other.data[2][1] + m.data[3][3] * other.data[3][1],
                 m.data[3][0] * other.data[0][2] + m.data[3][1] * other.data[1][2] + m.data[3][2] * other.data[2][2] + m.data[3][3] * other.data[3][2],
@@ -69,11 +69,12 @@ pub const Mat4x4 = struct.{
     }
 
     /// Custom format routine for Mat4x4
-    pub fn format(self: *const Self,
+    pub fn format(
+        self: *const Self,
         comptime fmt: []const u8,
         context: var,
         comptime FmtError: type,
-        output: fn (@typeOf(context), []const u8) FmtError!void
+        output: fn (@typeOf(context), []const u8) FmtError!void,
     ) FmtError!void {
         for (self.data) |row, i| {
             try std.fmt.format(context, FmtError, output, " []f32.{{ ");
@@ -85,14 +86,14 @@ pub const Mat4x4 = struct.{
     }
 };
 
-pub const mat4x4_identity = Mat4x4.{ .data = [][4]f32.{
-    []f32.{ 1.0, 0.0, 0.0, 0.0 },
-    []f32.{ 0.0, 1.0, 0.0, 0.0 },
-    []f32.{ 0.0, 0.0, 1.0, 0.0 },
-    []f32.{ 0.0, 0.0, 0.0, 1.0 },
+pub const mat4x4_identity = Mat4x4{ .data = [][4]f32{
+    []f32{ 1.0, 0.0, 0.0, 0.0 },
+    []f32{ 0.0, 1.0, 0.0, 0.0 },
+    []f32{ 0.0, 0.0, 1.0, 0.0 },
+    []f32{ 0.0, 0.0, 0.0, 1.0 },
 } };
 
-pub const Vec2 = struct.{
+pub const Vec2 = struct {
     const Self = @This();
 
     data: [2]f32,
@@ -122,7 +123,7 @@ pub const Vec2 = struct.{
     }
 
     pub fn scale(v: *const Vec2, scalar: f32) Vec2 {
-        return Vec2.{ .data = []f32.{
+        return Vec2{ .data = []f32{
             v.data[0] * scalar,
             v.data[1] * scalar,
         } };
@@ -141,18 +142,19 @@ pub const Vec2 = struct.{
     }
 
     /// Custom format routine for Vec2
-    pub fn format(self: *const Self,
+    pub fn format(
+        self: *const Self,
         comptime fmt: []const u8,
         context: var,
         comptime FmtError: type,
-        output: fn (@typeOf(context), []const u8) FmtError!void
+        output: fn (@typeOf(context), []const u8) FmtError!void,
     ) FmtError!void {
         try std.fmt.format(context, FmtError, output, "x={.3} y={.3}", self.x(), self.y());
     }
 };
 
 pub fn vec2(x: f32, y: f32) Vec2 {
-    return Vec2.{ .data = []f32.{
+    return Vec2{ .data = []f32{
         x,
         y,
     } };
@@ -175,7 +177,7 @@ test "math3d.vec2" {
     // TODO: More tests
 }
 
-pub const Vec3 = struct.{
+pub const Vec3 = struct {
     const Self = @This();
 
     data: [3]f32,
@@ -280,18 +282,19 @@ pub const Vec3 = struct.{
     }
 
     /// Custom format routine for Vec3
-    pub fn format(self: *const Self,
+    pub fn format(
+        self: *const Self,
         comptime fmt: []const u8,
         context: var,
         comptime FmtError: type,
-        output: fn (@typeOf(context), []const u8) FmtError!void
+        output: fn (@typeOf(context), []const u8) FmtError!void,
     ) FmtError!void {
         try std.fmt.format(context, FmtError, output, "{{.x={.3} .y={.3} .z={.3}}}", self.data[0], self.data[1], self.data[2]);
     }
 };
 
 pub fn vec3(x: f32, y: f32, z: f32) Vec3 {
-    return Vec3.{ .data = []f32.{
+    return Vec3{ .data = []f32{
         x,
         y,
         z,
@@ -350,7 +353,7 @@ test "math3d.vec3.add" {
     assert(r.z() == 3.3);
 }
 
-pub const Vec4 = struct.{
+pub const Vec4 = struct {
     const Self = @This();
 
     data: [4]f32,
@@ -392,18 +395,19 @@ pub const Vec4 = struct.{
     }
 
     /// Custom format routine for Vec4
-    pub fn format(self: *const Self,
+    pub fn format(
+        self: *const Self,
         comptime fmt: []const u8,
         context: var,
         comptime FmtError: type,
-        output: fn (@typeOf(context), []const u8) FmtError!void
+        output: fn (@typeOf(context), []const u8) FmtError!void,
     ) FmtError!void {
         try std.fmt.format(context, FmtError, output, "x={.3} y={.3} z={.3} w={.3}", self.x(), self.y(), self.z(), self.w());
     }
 };
 
 pub fn vec4(x: f32, y: f32, z: f32, w: f32) Vec4 {
-    return Vec4.{ .data = []f32.{
+    return Vec4{ .data = []f32{
         x,
         y,
         z,
@@ -436,11 +440,11 @@ test "math3d.vec4" {
 
 /// Builds a 4x4 translation matrix
 pub fn translation(x: f32, y: f32, z: f32) Mat4x4 {
-    return Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.0, 0.0, 0.0, x },
-        []f32.{ 0.0, 1.0, 0.0, y },
-        []f32.{ 0.0, 0.0, 1.0, z },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    return Mat4x4{ .data = [][4]f32{
+        []f32{ 1.0, 0.0, 0.0, x },
+        []f32{ 0.0, 1.0, 0.0, y },
+        []f32{ 0.0, 0.0, 1.0, z },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
 }
 
@@ -451,11 +455,11 @@ pub fn translationVec3(vertex: Vec3) Mat4x4 {
 test "math3d.translation" {
     if (DBG) warn("\n");
     var m = translation(1, 2, 3);
-    const expected = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.0, 0.0, 0.0, 1.0 },
-        []f32.{ 0.0, 1.0, 0.0, 2.0 },
-        []f32.{ 0.0, 0.0, 1.0, 3.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const expected = Mat4x4{ .data = [][4]f32{
+        []f32{ 1.0, 0.0, 0.0, 1.0 },
+        []f32{ 0.0, 1.0, 0.0, 2.0 },
+        []f32{ 0.0, 0.0, 1.0, 3.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("translation: expected\n{}", &expected);
     m.assert_matrix_eq(&expected);
@@ -470,19 +474,19 @@ pub fn lookAtLh(eye: *const Vec3, target: *const Vec3, up: *const Vec3) Mat4x4 {
     var yaxis = zaxis.cross(&xaxis);
 
     // Column major order?
-    var cmo = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ xaxis.x(), yaxis.x(), zaxis.x(), 0 },
-        []f32.{ xaxis.y(), yaxis.y(), zaxis.y(), 0 },
-        []f32.{ xaxis.z(), yaxis.z(), zaxis.z(), 0 },
-        []f32.{ -xaxis.dot(eye), -yaxis.dot(eye), -zaxis.dot(eye), 1 },
+    var cmo = Mat4x4{ .data = [][4]f32{
+        []f32{ xaxis.x(), yaxis.x(), zaxis.x(), 0 },
+        []f32{ xaxis.y(), yaxis.y(), zaxis.y(), 0 },
+        []f32{ xaxis.z(), yaxis.z(), zaxis.z(), 0 },
+        []f32{ -xaxis.dot(eye), -yaxis.dot(eye), -zaxis.dot(eye), 1 },
     } };
 
     // Row major order?
-    var rmo = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ xaxis.x(), xaxis.y(), xaxis.z(), -xaxis.dot(eye) },
-        []f32.{ yaxis.x(), yaxis.y(), yaxis.z(), -yaxis.dot(eye) },
-        []f32.{ zaxis.x(), zaxis.y(), zaxis.z(), -zaxis.dot(eye) },
-        []f32.{ 0, 0, 0, 1 },
+    var rmo = Mat4x4{ .data = [][4]f32{
+        []f32{ xaxis.x(), xaxis.y(), xaxis.z(), -xaxis.dot(eye) },
+        []f32{ yaxis.x(), yaxis.y(), yaxis.z(), -yaxis.dot(eye) },
+        []f32{ zaxis.x(), zaxis.y(), zaxis.z(), -zaxis.dot(eye) },
+        []f32{ 0, 0, 0, 1 },
     } };
 
     var result = cmo;
@@ -503,11 +507,11 @@ test "math3d.lookAtLh" {
     var target = Vec3.init(0, 0, 0);
     var view_matrix = lookAtLh(&eye, &target, &Vec3.unitY());
 
-    const expected = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.00000, 0.00000, 0.00000, 0.00000 },
-        []f32.{ 0.00000, 1.00000, 0.00000, 0.00000 },
-        []f32.{ 0.00000, 0.00000, 1.00000, 0.00000 },
-        []f32.{ 0.00000, 0.00000, 10.00000, 1.00000 },
+    const expected = Mat4x4{ .data = [][4]f32{
+        []f32{ 1.00000, 0.00000, 0.00000, 0.00000 },
+        []f32{ 0.00000, 1.00000, 0.00000, 0.00000 },
+        []f32{ 0.00000, 0.00000, 1.00000, 0.00000 },
+        []f32{ 0.00000, 0.00000, 10.00000, 1.00000 },
     } };
     view_matrix.assert_matrix_eq(&expected);
 
@@ -553,18 +557,17 @@ fn project(widthf: f32, heightf: f32, coord: Vec3, transMat: *const Mat4x4) Vec2
     return pointToScreen(widthf, heightf, point.x(), point.y());
 }
 
-
 /// Creates a right-handed perspective project matrix
 /// BasedOn: https://github.com/sharpdx/SharpDX/blob/755cb46d59f4bfb94386ff2df3fceccc511c216b/Source/SharpDX.Mathematics/Matrix.cs#L2328
 pub fn perspectiveFovRh(fov: f32, aspect: f32, znear: f32, zfar: f32) Mat4x4 {
     var y_scale: f32 = 1.0 / math.tan(fov * 0.5);
     var q = zfar / (znear - zfar);
 
-    return Mat4x4.{ .data = [][4]f32.{
-        []f32.{ y_scale / aspect, 0, 0, 0 },
-        []f32.{ 0, y_scale, 0, 0 },
-        []f32.{ 0, 0, q, -1.0 },
-        []f32.{ 0, 0, q * znear, 0 },
+    return Mat4x4{ .data = [][4]f32{
+        []f32{ y_scale / aspect, 0, 0, 0 },
+        []f32{ 0, y_scale, 0, 0 },
+        []f32{ 0, 0, q, -1.0 },
+        []f32{ 0, 0, q * znear, 0 },
     } };
 }
 
@@ -577,38 +580,38 @@ test "math3d.perspectiveFovRh" {
     var projection_matrix = perspectiveFovRh(fov, widthf / heightf, znear, zvar);
     if (DBG) warn("\nprojection_matrix:\n{}", &projection_matrix);
 
-    const expected = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.8245738, 0.0000000, 0.0000000, 0.0000000 },
-        []f32.{ 0.0000000, 2.4327650, 0.0000000, 0.0000000 },
-        []f32.{ 0.0000000, 0.0000000, -1.0101010, -1.0000000 },
-        []f32.{ 0.0000000, 0.0000000, -0.0101010, 0.0000000 },
+    const expected = Mat4x4{ .data = [][4]f32{
+        []f32{ 1.8245738, 0.0000000, 0.0000000, 0.0000000 },
+        []f32{ 0.0000000, 2.4327650, 0.0000000, 0.0000000 },
+        []f32{ 0.0000000, 0.0000000, -1.0101010, -1.0000000 },
+        []f32{ 0.0000000, 0.0000000, -0.0101010, 0.0000000 },
     } };
     projection_matrix.assert_matrix_eq(&expected);
 }
 
 /// Builds a Yaw Pitch Roll Rotation matrix from x, y, z angles in radians.
 pub fn rotationYawPitchRoll(x: f32, y: f32, z: f32) Mat4x4 {
-    const rz = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ math.cos(z), -math.sin(z), 0.0, 0.0 },
-        []f32.{ math.sin(z), math.cos(z), 0.0, 0.0 },
-        []f32.{ 0.0, 0.0, 1.0, 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const rz = Mat4x4{ .data = [][4]f32{
+        []f32{ math.cos(z), -math.sin(z), 0.0, 0.0 },
+        []f32{ math.sin(z), math.cos(z), 0.0, 0.0 },
+        []f32{ 0.0, 0.0, 1.0, 0.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("rotationYawPitchRoll rz:\n{}", &rz);
 
-    const rx = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.0, 0.0, 0.0, 0.0 },
-        []f32.{ 0.0, math.cos(x), -math.sin(x), 0.0 },
-        []f32.{ 0.0, math.sin(x), math.cos(x), 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const rx = Mat4x4{ .data = [][4]f32{
+        []f32{ 1.0, 0.0, 0.0, 0.0 },
+        []f32{ 0.0, math.cos(x), -math.sin(x), 0.0 },
+        []f32{ 0.0, math.sin(x), math.cos(x), 0.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("rotationYawPitchRoll rx:\n{}", &rx);
 
-    const ry = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ math.cos(y), 0.0, math.sin(y), 0.0 },
-        []f32.{ 0.0, 1.0, 0.0, 0.0 },
-        []f32.{ -math.sin(y), 0.0, math.cos(y), 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const ry = Mat4x4{ .data = [][4]f32{
+        []f32{ math.cos(y), 0.0, math.sin(y), 0.0 },
+        []f32{ 0.0, 1.0, 0.0, 0.0 },
+        []f32{ -math.sin(y), 0.0, math.cos(y), 0.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("rotationYawPitchRoll ry:\n{}", &ry);
 
@@ -625,27 +628,27 @@ pub fn rotationYawPitchRollVec3(point: Vec3) Mat4x4 {
 /// Builds a Yaw Pitch Roll Rotation matrix from x, y, z angles in radians.
 /// With the x, y, z applied in the opposite order then rotationYawPitchRoll.
 pub fn rotationYawPitchRollNeg(x: f32, y: f32, z: f32) Mat4x4 {
-    const rz = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ math.cos(z), -math.sin(z), 0.0, 0.0 },
-        []f32.{ math.sin(z), math.cos(z), 0.0, 0.0 },
-        []f32.{ 0.0, 0.0, 1.0, 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const rz = Mat4x4{ .data = [][4]f32{
+        []f32{ math.cos(z), -math.sin(z), 0.0, 0.0 },
+        []f32{ math.sin(z), math.cos(z), 0.0, 0.0 },
+        []f32{ 0.0, 0.0, 1.0, 0.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("rotationYawPitchRollNeg rz:\n{}", &rz);
 
-    const rx = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ 1.0, 0.0, 0.0, 0.0 },
-        []f32.{ 0.0, math.cos(x), -math.sin(x), 0.0 },
-        []f32.{ 0.0, math.sin(x), math.cos(x), 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const rx = Mat4x4{ .data = [][4]f32{
+        []f32{ 1.0, 0.0, 0.0, 0.0 },
+        []f32{ 0.0, math.cos(x), -math.sin(x), 0.0 },
+        []f32{ 0.0, math.sin(x), math.cos(x), 0.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("rotationYawPitchRollNeg rx:\n{}", &rx);
 
-    const ry = Mat4x4.{ .data = [][4]f32.{
-        []f32.{ math.cos(y), 0.0, math.sin(y), 0.0 },
-        []f32.{ 0.0, 1.0, 0.0, 0.0 },
-        []f32.{ -math.sin(y), 0.0, math.cos(y), 0.0 },
-        []f32.{ 0.0, 0.0, 0.0, 1.0 },
+    const ry = Mat4x4{ .data = [][4]f32{
+        []f32{ math.cos(y), 0.0, math.sin(y), 0.0 },
+        []f32{ 0.0, 1.0, 0.0, 0.0 },
+        []f32{ -math.sin(y), 0.0, math.cos(y), 0.0 },
+        []f32{ 0.0, 0.0, 0.0, 1.0 },
     } };
     if (DBG) warn("rotationYawPitchRollNeg ry:\n{}", &ry);
 
@@ -666,7 +669,7 @@ test "math3d.rotationYawPitchRoll" {
     var m_x_neg_ten_deg = rotationYawPitchRoll(-deg10rad, 0, 0);
     if (DBG) warn("m_x_neg_ten_deg:\n{}", &m_x_neg_ten_deg);
     var x = m_x_pos_ten_deg.mult(&m_x_neg_ten_deg);
-    if (DBG) warn("x = pos * neg:\n{}", & x);
+    if (DBG) warn("x = pos * neg:\n{}", &x);
     m_zero.assert_matrix_eq(&x);
 
     if (DBG) warn("\n");
@@ -742,29 +745,29 @@ test "math3d.world_to_screen" {
     var world_to_camera_matrix = mat4x4_identity;
     world_to_camera_matrix.data[3][2] = -2;
 
-    var world_vertexs = []Vec3.{
+    var world_vertexs = []Vec3{
         Vec3.init(0, 1.0, 0),
         Vec3.init(0, -1.0, 0),
         Vec3.init(0, 1.0, 0.2),
         Vec3.init(0, -1.0, -0.2),
     };
-    var expected_camera_vertexs = []Vec3.{
+    var expected_camera_vertexs = []Vec3{
         Vec3.init(0, 1.0, -2),
         Vec3.init(0, -1.0, -2),
         Vec3.init(0, 1.0, -1.8),
         Vec3.init(0, -1.0, -2.2),
     };
-    var expected_projected_vertexs = []Vec3.{
+    var expected_projected_vertexs = []Vec3{
         Vec3.init(0, 0.5, 1.0050504),
         Vec3.init(0, -0.5, 1.0050504),
         Vec3.init(0, 0.5555555, 1.0044893),
         Vec3.init(0, -0.4545454, 1.0055095),
     };
-    var expected_screen_vertexs = [][2]u32.{
-        []u32.{256, 128},
-        []u32.{256, 384},
-        []u32.{256, 113},
-        []u32.{256, 372},
+    var expected_screen_vertexs = [][2]u32{
+        []u32{ 256, 128 },
+        []u32{ 256, 384 },
+        []u32{ 256, 113 },
+        []u32{ 256, 372 },
     };
     for (world_vertexs) |world_vert, i| {
         if (DBG) warn("world_vert[{}]  = {}\n", i, &world_vert);
@@ -786,7 +789,7 @@ test "math3d.world_to_screen" {
 
         var x = @floatToInt(u32, math.min(widthf - 1, (xf + 1) * 0.5 * widthf));
         var y = @floatToInt(u32, math.min(heightf - 1, (1 - (yf + 1) * 0.5) * heightf));
-        if (DBG) warn (" visible {}:{}\n", x, y);
+        if (DBG) warn(" visible {}:{}\n", x, y);
         assert(x == expected_screen_vertexs[i][0]);
         assert(y == expected_screen_vertexs[i][1]);
     }
