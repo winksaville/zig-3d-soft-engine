@@ -8,7 +8,7 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
-const math3d = @import("math3dx.zig");
+const math3d = @import("math3d.zig");
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
 const ie = @import("input_events.zig");

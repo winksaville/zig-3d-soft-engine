@@ -3,7 +3,7 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const Allocator = std.mem.Allocator;
 const math = std.math;
-const math3d = @import("math3dx.zig");
+const math3d = @import("math3d.zig");
 
 pub const Mesh = struct {
     const Self = @This();
