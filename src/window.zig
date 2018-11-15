@@ -8,7 +8,8 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
-const math3d = @import("math3d.zig");
+const geo = @import("../modules/zig-geometry/index.zig");
+
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
 const ie = @import("input_events.zig");
@@ -130,29 +131,15 @@ pub const Window = struct {
         _ = gl.SDL_RenderPresent(pSelf.sdl_renderer);
     }
 
-    pub fn pointToScreen(pSelf: *Self, pos_x: f32, pos_y: f32) math3d.Vec2 {
-        // The transformed coord is based on a coordinate system
-        // where the origin is the center of the screen. Convert
-        // them to coordindates where x:0, y:0 is the upper left.
-        var x = (pos_x + 1) * 0.5 * pSelf.widthf;
-        var y = (1 - ((pos_y + 1) * 0.5)) * pSelf.heightf;
-        return math3d.Vec2.init(x, y);
-    }
-
     /// Project takes a 3D coord and converts it to a 2D point
     /// using the transform matrix.
-    pub fn project(pSelf: *Self, coord: math3d.Vec3, transMat: *const math3d.Mat4x4) math3d.Vec2 {
+    pub fn project(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V2f32 {
         if (DBG) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
-
-        // Transform coord in 3D
-        var point = coord.transform(transMat);
-        if (DBG) warn("project: transformed point={}\n", &point);
-
-        return pSelf.pointToScreen(point.x(), point.y());
+        return geo.projectToScreenCoord(pSelf.widthf, pSelf.heightf, coord, transMat);
     }
 
     /// Draw a Vec2 point clipping it if its outside the screen
-    pub fn drawPoint(pSelf: *Self, point: math3d.Vec2, color: u32) void {
+    pub fn drawPoint(pSelf: *Self, point: geo.V2f32, color: u32) void {
         if (DBG) warn("drawPoint: x={.3} y={.3} c={x}\n", point.x(), point.y(), color);
         if ((point.x() >= 0) and (point.y() >= 0) and (point.x() < pSelf.widthf) and (point.y() < pSelf.heightf)) {
             var x = @floatToInt(usize, point.x());
@@ -164,23 +151,23 @@ pub const Window = struct {
 
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
-        var view_matrix = math3d.lookAtLh(&camera.position, &camera.target, &math3d.Vec3.unitY());
+        var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &geo.V3f32.unitY());
         if (DBG) warn("view_matrix:\n{}", &view_matrix);
 
-        var fov: f32 = rad(f32(90));
+        var fov: f32 = 90;
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
-        var perspective_matrix = math3d.perspectiveFovRh(fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        if (DBG) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", deg(fov), znear, zfar, &perspective_matrix);
+        var perspective_matrix = geo.perspectiveM44(f32, fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        if (DBG) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", geo.deg(fov), znear, zfar, &perspective_matrix);
 
         for (meshes) |mesh| {
-            var rotation_matrix = math3d.rotationYawPitchRollVec3(mesh.rotation);
-            var translation_matrix = math3d.translationVec3(mesh.position);
-            var world_matrix = translation_matrix.mult(&rotation_matrix);
+            var rotation_matrix = geo.rotationYawPitchRollV3f32(mesh.rotation);
+            var translation_matrix = geo.translationV3f32(mesh.position);
+            var world_matrix = geo.mulM44f32(&translation_matrix, &rotation_matrix);
             if (DBG) warn("world_matrix:\n{}", &world_matrix);
 
-            var world_to_view_matrix = world_matrix.mult(&view_matrix);
-            var transform_matrix = world_to_view_matrix.mult(&perspective_matrix);
+            var world_to_view_matrix = geo.mulM44f32(&world_matrix, &view_matrix);
+            var transform_matrix = geo.mulM44f32(&world_to_view_matrix, &perspective_matrix);
             if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
 
             for (mesh.vertices) |vertex, i| {
@@ -224,28 +211,28 @@ test "window.project" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = math3d.Vec3.init(0, 0, 0);
-    var r = window.project(v1, &math3d.mat4x4_identity);
+    var v1 = geo.V3f32.init(0, 0, 0);
+    var r = window.project(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf / 2.0);
     assert(r.y() == window.heightf / 2.0);
 
-    v1 = math3d.Vec3.init(-1.0, 1.0, 0);
-    r = window.project(v1, &math3d.mat4x4_identity);
+    v1 = geo.V3f32.init(-1.0, 1.0, 0);
+    r = window.project(v1, &geo.m44f32_unit);
     assert(r.x() == 0);
     assert(r.y() == 0);
 
-    v1 = math3d.Vec3.init(1.0, -1.0, 0);
-    r = window.project(v1, &math3d.mat4x4_identity);
+    v1 = geo.V3f32.init(1.0, -1.0, 0);
+    r = window.project(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf);
     assert(r.y() == window.heightf);
 
-    v1 = math3d.Vec3.init(-1.0, -1.0, 0);
-    r = window.project(v1, &math3d.mat4x4_identity);
+    v1 = geo.V3f32.init(-1.0, -1.0, 0);
+    r = window.project(v1, &geo.m44f32_unit);
     assert(r.x() == 0);
     assert(r.y() == window.heightf);
 
-    v1 = math3d.Vec3.init(1.0, 1.0, 0);
-    r = window.project(v1, &math3d.mat4x4_identity);
+    v1 = geo.V3f32.init(1.0, 1.0, 0);
+    r = window.project(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf);
     assert(r.y() == 0);
 }
@@ -259,11 +246,11 @@ test "window.drawPoint" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var p1 = math3d.Vec2.init(0, 0);
+    var p1 = geo.V2f32.init(0, 0);
     window.drawPoint(p1, 0x80808080);
     assert(window.getPixel(0, 0) == 0x80808080);
 
-    p1 = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+    p1 = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
     window.drawPoint(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
 }
@@ -283,23 +270,23 @@ test "window.render.cube" {
     mesh = try Mesh.init(pAllocator, "mesh1", 8);
 
     // Front face
-    mesh.vertices[0] = math3d.vec3(1, 1, 1);
-    mesh.vertices[1] = math3d.vec3(1, -1, 1);
-    mesh.vertices[2] = math3d.vec3(-1, -1, 1);
-    mesh.vertices[3] = math3d.vec3(-1, 1, 1);
+    mesh.vertices[0] = geo.V3f32.init(1, 1, 1);
+    mesh.vertices[1] = geo.V3f32.init(1, -1, 1);
+    mesh.vertices[2] = geo.V3f32.init(-1, -1, 1);
+    mesh.vertices[3] = geo.V3f32.init(-1, 1, 1);
 
     // Back face
-    mesh.vertices[6] = math3d.vec3(1, 1, -1);
-    mesh.vertices[7] = math3d.vec3(1, -1, -1);
-    mesh.vertices[4] = math3d.vec3(-1, -1, -1);
-    mesh.vertices[5] = math3d.vec3(-1, 1, -1);
+    mesh.vertices[6] = geo.V3f32.init(1, 1, -1);
+    mesh.vertices[7] = geo.V3f32.init(1, -1, -1);
+    mesh.vertices[4] = geo.V3f32.init(-1, -1, -1);
+    mesh.vertices[5] = geo.V3f32.init(-1, 1, -1);
 
     var meshes = []Mesh{mesh};
 
-    var movement = math3d.Vec3.init(0.01, 0.01, 0); // Small amount of movement
+    var movement = geo.V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
-    var camera_position = math3d.Vec3.init(0, 0, 3);
-    var camera_target = math3d.Vec3.zero();
+    var camera_position = geo.V3f32.init(0, 0, 3);
+    var camera_target = geo.V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
 
     // Loop until end_time is reached but always loop once :)
@@ -313,7 +300,7 @@ test "window.render.cube" {
         if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
         window.render(&camera, &meshes);
 
-        var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+        var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
         window.drawPoint(center, 0xffffffff);
 
         window.present();
@@ -344,28 +331,28 @@ test "window.world_to_screen" {
     var window = try Window.init(pAllocator, width, height, "testWindow");
     defer window.deinit();
 
-    var camera_to_perspective_matrix = math3d.perspectiveFovRh(rad(fov), aspect, znear, zfar);
+    var camera_to_perspective_matrix = geo.perspectiveM44(f32, fov, aspect, znear, zfar);
 
-    var world_to_camera_matrix = math3d.mat4x4_identity;
+    var world_to_camera_matrix = geo.m44f32_unit;
     world_to_camera_matrix.data[3][2] = -2;
 
-    var world_vertexs = []math3d.Vec3{
-        math3d.Vec3.init(0, 1.0, 0),
-        math3d.Vec3.init(0, -1.0, 0),
-        math3d.Vec3.init(0, 1.0, 0.2),
-        math3d.Vec3.init(0, -1.0, -0.2),
+    var world_vertexs = []geo.V3f32{
+        geo.V3f32.init(0, 1.0, 0),
+        geo.V3f32.init(0, -1.0, 0),
+        geo.V3f32.init(0, 1.0, 0.2),
+        geo.V3f32.init(0, -1.0, -0.2),
     };
-    var expected_camera_vertexs = []math3d.Vec3{
-        math3d.Vec3.init(0, 1.0, -2),
-        math3d.Vec3.init(0, -1.0, -2),
-        math3d.Vec3.init(0, 1.0, -1.8),
-        math3d.Vec3.init(0, -1.0, -2.2),
+    var expected_camera_vertexs = []geo.V3f32{
+        geo.V3f32.init(0, 1.0, -2),
+        geo.V3f32.init(0, -1.0, -2),
+        geo.V3f32.init(0, 1.0, -1.8),
+        geo.V3f32.init(0, -1.0, -2.2),
     };
-    var expected_projected_vertexs = []math3d.Vec3{
-        math3d.Vec3.init(0, 0.5, 1.0050504),
-        math3d.Vec3.init(0, -0.5, 1.0050504),
-        math3d.Vec3.init(0, 0.5555555, 1.0044893),
-        math3d.Vec3.init(0, -0.4545454, 1.0055095),
+    var expected_projected_vertexs = []geo.V3f32{
+        geo.V3f32.init(0, 0.5, 1.0050504),
+        geo.V3f32.init(0, -0.5, 1.0050504),
+        geo.V3f32.init(0, 0.5555555, 1.0044893),
+        geo.V3f32.init(0, -0.4545454, 1.0055095),
     };
     var expected_screen_vertexs = [][2]u32{
         []u32{ 256, 128 },
@@ -396,28 +383,18 @@ test "window.world_to_screen" {
             if (DBG) warn("projected_vert = {}\n", projected_vert);
             assert(projected_vert.approxEql(&expected_projected_vertexs[i], 6));
 
-            var point = window.project(projected_vert, &math3d.mat4x4_identity);
+            var point = window.project(projected_vert, &geo.m44f32_unit);
             window.drawPoint(point, 0xffff00ff);
             assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == 0xffff00ff);
         }
 
-        var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+        var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
         window.drawPoint(center, 0xffffffff);
 
         window.present();
 
         if (timer.read() > end_time) break;
     }
-}
-
-fn rad(d: var) @typeOf(d) {
-    const T = @typeOf(d);
-    return d * T(math.pi) / T(180.0);
-}
-
-fn deg(r: var) @typeOf(r) {
-    const T = @typeOf(r);
-    return r * T(180.0) / T(math.pi);
 }
 
 test "window.pts" {
@@ -437,34 +414,31 @@ test "window.pts" {
 
         // vertical line .5 unit above 0,0,0
         mesh = try Mesh.init(pAllocator, "mesh1", 2);
-        mesh.vertices[0] = math3d.vec3(0.0, 0.5, 0.0);
-        mesh.vertices[1] = math3d.vec3(0.0, -0.5, 0.0);
+        mesh.vertices[0] = geo.V3f32.init(0.0, 0.5, 0.0);
+        mesh.vertices[1] = geo.V3f32.init(0.0, -0.5, 0.0);
 
         // Box
         //mesh = try Mesh.init(pAllocator, "mesh1", 4);
-        //mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.0);
-        //mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.0);
-        //mesh.vertices[2] = math3d.vec3(0.1, -0.1, 0.0);
-        //mesh.vertices[3] = math3d.vec3(-0.1, -0.1, 0.0);
+        //mesh.vertices[0] = geo.V3f32.init(0.1, 0.1, 0.0);
+        //mesh.vertices[1] = geo.V3f32.init(-0.1, 0.1, 0.0);
+        //mesh.vertices[2] = geo.V3f32.init(0.1, -0.1, 0.0);
+        //mesh.vertices[3] = geo.V3f32.init(-0.1, -0.1, 0.0);
 
         // Cube
         //mesh = try Mesh.init(pAllocator, "mesh1", 8);
-        //mesh.vertices[0] = math3d.vec3(0.1, 0.1, 0.1);
-        //mesh.vertices[1] = math3d.vec3(-0.1, 0.1, 0.1);
-        //mesh.vertices[2] = math3d.vec3(0.1, -0.1, 0.1);
-        //mesh.vertices[3] = math3d.vec3(-0.1, -0.1, 0.1);
-        //mesh.vertices[4] = math3d.vec3(0.1, 0.1, -0.1);
-        //mesh.vertices[5] = math3d.vec3(-0.1, 0.1, -0.1);
-        //mesh.vertices[6] = math3d.vec3(0.1, -0.1, -0.1);
-        //mesh.vertices[7] = math3d.vec3(-0.1, -0.1, -0.1);
+        //mesh.vertices[0] = geo.V3f32.init(0.1, 0.1, 0.1);
+        //mesh.vertices[1] = geo.V3f32.init(-0.1, 0.1, 0.1);
+        //mesh.vertices[2] = geo.V3f32.init(0.1, -0.1, 0.1);
+        //mesh.vertices[3] = geo.V3f32.init(-0.1, -0.1, 0.1);
+        //mesh.vertices[4] = geo.V3f32.init(0.1, 0.1, -0.1);
+        //mesh.vertices[5] = geo.V3f32.init(-0.1, 0.1, -0.1);
+        //mesh.vertices[6] = geo.V3f32.init(0.1, -0.1, -0.1);
+        //mesh.vertices[7] = geo.V3f32.init(-0.1, -0.1, -0.1);
 
         var meshes = []Mesh{mesh};
 
-        //var movement: math3d.Vec3 = undefined;
-        //movement = math3d.Vec3.init(rad(f32(2)), rad(f32(2)), 0));
-
-        var camera_position = math3d.Vec3.init(0, 0, -2);
-        var camera_target = math3d.Vec3.zero();
+        var camera_position = geo.V3f32.init(0, 0, -2);
+        var camera_target = geo.V3f32.initVal(0);
         var camera = Camera.init(camera_position, camera_target);
 
         // Loop until end_time is reached but always loop once :)
@@ -494,7 +468,7 @@ test "window.pts" {
             if (DBG1) warn("rotation={}\n", meshes[0].rotation);
             window.render(&camera, &meshes);
 
-            var center = math3d.Vec2.init(window.widthf / 2, window.heightf / 2);
+            var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
             window.drawPoint(center, 0xffffffff);
 
             window.present();
@@ -513,8 +487,6 @@ test "window.pts" {
                 gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
                 gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
                 gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
-                //gl.SDLK_UP => meshes[0].rotation = meshes[0].rotation.add(&movement),
-                //gl.SDLK_DOWN => meshes[0].rotation = meshes[0].rotation.subtract(&movement),
                 else => {},
             }
         }
@@ -528,20 +500,20 @@ const KeyState = struct {
     ei: ie.EventInterface,
 };
 
-fn rotate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
-    var r = rad(val);
+fn rotate(mod: u16, pos: geo.V3f32, val: f32) geo.V3f32 {
+    var r = geo.rad(val);
     if (DBG) warn("rotate: mod={x} pos={} rad(val)={}\n", mod, pos, r);
     var new_pos = pos;
     if ((mod & gl.KMOD_LCTRL) != 0) {
-        new_pos = pos.add(&math3d.Vec3.init(r, 0, 0));
+        new_pos = pos.add(&geo.V3f32.init(r, 0, 0));
         if (DBG) warn("rotate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
-        new_pos = pos.add(&math3d.Vec3.init(0, r, 0));
+        new_pos = pos.add(&geo.V3f32.init(0, r, 0));
         if (DBG) warn("rotate: add Y\n");
     }
     if ((mod & gl.KMOD_LALT) != 0) {
-        new_pos = pos.add(&math3d.Vec3.init(0, 0, r));
+        new_pos = pos.add(&geo.V3f32.init(0, 0, r));
         if (DBG) warn("rotate: add Z\n");
     }
     if (DBG and !pos.approxEql(&new_pos, 4)) {
@@ -550,19 +522,19 @@ fn rotate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
     return new_pos;
 }
 
-fn translate(mod: u16, pos: math3d.Vec3, val: f32) math3d.Vec3 {
+fn translate(mod: u16, pos: geo.V3f32, val: f32) geo.V3f32 {
     if (DBG) warn("translate: pos={}\n", pos);
     var new_pos = pos;
     if ((mod & gl.KMOD_LCTRL) != 0) {
-        new_pos = pos.add(&math3d.Vec3.init(val, 0, 0));
+        new_pos = pos.add(&geo.V3f32.init(val, 0, 0));
         if (DBG) warn("translate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
-        new_pos = pos.add(&math3d.Vec3.init(0, val, 0));
+        new_pos = pos.add(&geo.V3f32.init(0, val, 0));
         if (DBG) warn("translate: add Y\n");
     }
     if ((mod & gl.KMOD_LALT) != 0) {
-        new_pos = pos.add(&math3d.Vec3.init(0, 0, val));
+        new_pos = pos.add(&geo.V3f32.init(0, 0, val));
         if (DBG) warn("translate: add Z\n");
     }
     if (DBG and !pos.eql(&new_pos)) {

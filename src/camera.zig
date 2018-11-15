@@ -2,15 +2,16 @@ const std = @import("std");
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 const math = std.math;
-const math3d = @import("math3d.zig");
+
+const geo = @import("../modules/zig-geometry/index.zig");
 
 pub const Camera = struct {
     const Self = @This();
 
-    pub position: math3d.Vec3,
-    pub target: math3d.Vec3,
+    pub position: geo.V3f32,
+    pub target: geo.V3f32,
 
-    pub fn init(position: math3d.Vec3, target: math3d.Vec3) Self {
+    pub fn init(position: geo.V3f32, target: geo.V3f32) Self {
         return Self{
             .position = position,
             .target = target,
@@ -19,7 +20,7 @@ pub const Camera = struct {
 };
 
 test "camera" {
-    var camera = Camera.init(math3d.vec3(0.1, 0.2, 0.3), math3d.vec3(0.4, 0.5, 0.6));
+    var camera = Camera.init(geo.V3f32.init(0.1, 0.2, 0.3), geo.V3f32.init(0.4, 0.5, 0.6));
 
     assert(camera.position.data[0] == 0.1);
     assert(camera.position.data[1] == 0.2);
