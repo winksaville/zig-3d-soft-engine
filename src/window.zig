@@ -15,9 +15,9 @@ const Mesh = @import("mesh.zig").Mesh;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
-const DBG = true;
-const DBG1 = true;
-const DBG2 = true;
+const DBG = false;
+const DBG1 = false;
+const DBG2 = false;
 
 pub const Window = struct {
     const Self = @This();
@@ -135,7 +135,7 @@ pub const Window = struct {
     /// Project takes a 3D coord and converts it to a 2D point
     /// using the transform matrix.
     pub fn project(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V2f32 {
-        if (DBG) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
+        if (DBG1) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
         return geo.projectToScreenCoord(pSelf.widthf, pSelf.heightf, coord, transMat);
     }
 
@@ -150,9 +150,21 @@ pub const Window = struct {
         }
     }
 
+    /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
+    pub fn drawPointXy(pSelf: *Self, x: isize, y: isize, color: u32) void {
+        //if (DBG) warn("drawPointXy: x={.3} y={.3} c={x}\n", x, y, color);
+        if ((x >= 0) and (y >= 0)) {
+            var ux = @bitCast(usize, x);
+            var uy = @bitCast(usize, y);
+            if ((ux < pSelf.width) and (uy < pSelf.height)) {
+                //if (DBG) warn("drawPointXy: putting x={} y={} c={x}\n", ux, uy, color);
+                pSelf.putPixel(ux, uy, color);
+            }
+        }
+    }
+
     /// Draw a line point0 and 1 are in screen coordinates
     pub fn drawLine(pSelf: *Self, point0: geo.V2f32, point1: geo.V2f32, color: u32) void {
-        // What if diff is negative?
         var diff = point1.sub(&point0);
         var dist = diff.length();
         //if (DBG) warn("drawLine: diff={} dist={}\n", diff, dist);
@@ -166,6 +178,34 @@ pub const Window = struct {
 
         pSelf.drawLine(point0, mid_point, color);
         pSelf.drawLine(mid_point, point1, color);
+    }
+
+    /// Draw a line point0 and 1 are in screen coordinates using Bresnham algorithm
+    pub fn drawBline(pSelf: *Self, point0: geo.V2f32, point1: geo.V2f32, color: u32) void {
+        //@setRuntimeSafety(false);
+        var x0 = @floatToInt(isize, point0.x());
+        var y0 = @floatToInt(isize, point0.y());
+        var x1 = @floatToInt(isize, point1.x());
+        var y1 = @floatToInt(isize, point1.y());
+
+        var dx: isize = math.absInt(x1 - x0) catch unreachable;
+        var dy: isize = math.absInt(y1 - y0) catch unreachable;
+        var sx: isize = if (x0 < x1) isize(1) else isize(-1);
+        var sy: isize = if (y0 < y1) isize(1) else isize(-1);
+        var err: isize = dx - dy;
+
+        while (true) {
+            pSelf.drawPointXy(x0, y0, color);
+            if ((x0 == x1) and (y0 == y1)) break;
+            var e2: isize = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            } else {
+                err += dx;
+                y0 += sy;
+            }
+        }
     }
 
     /// Render the meshes into the window from the camera's point of view
@@ -200,9 +240,9 @@ pub const Window = struct {
 
                 const color = 0xffff00ff;
 
-                pSelf.drawLine(pa, pb, color);
-                pSelf.drawLine(pb, pc, color);
-                pSelf.drawLine(pc, pa, color);
+                pSelf.drawBline(pa, pb, color);
+                pSelf.drawBline(pb, pc, color);
+                pSelf.drawBline(pc, pa, color);
             }
         }
     }
@@ -351,11 +391,9 @@ test "window.render.cube" {
     var camera = Camera.init(camera_position, camera_target);
 
     // Loop until end_time is reached but always loop once :)
-    var msf: u64 = time.ns_per_s / time.ms_per_s;
+    var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
-    var end_time: u64 = 0;
-    //if (DBG or DBG1 or DBG2) end_time += (5000 * msf);
-    end_time += (5000 * msf);
+    var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
     while (true) {
         window.clear();
 
