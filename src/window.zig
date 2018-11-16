@@ -12,6 +12,7 @@ const geo = @import("../modules/zig-geometry/index.zig");
 
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
+const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
 const DBG = true;
@@ -138,15 +139,33 @@ pub const Window = struct {
         return geo.projectToScreenCoord(pSelf.widthf, pSelf.heightf, coord, transMat);
     }
 
-    /// Draw a Vec2 point clipping it if its outside the screen
+    /// Draw a Vec2 point in screen coordinates clipping it if its outside the screen
     pub fn drawPoint(pSelf: *Self, point: geo.V2f32, color: u32) void {
-        if (DBG) warn("drawPoint: x={.3} y={.3} c={x}\n", point.x(), point.y(), color);
+        //if (DBG) warn("drawPoint: x={.3} y={.3} c={x}\n", point.x(), point.y(), color);
         if ((point.x() >= 0) and (point.y() >= 0) and (point.x() < pSelf.widthf) and (point.y() < pSelf.heightf)) {
             var x = @floatToInt(usize, point.x());
             var y = @floatToInt(usize, point.y());
-            if (DBG) warn("drawPoint: putting x={} y={} c={x}\n", x, y, color);
+            //if (DBG) warn("drawPoint: putting x={} y={} c={x}\n", x, y, color);
             pSelf.putPixel(x, y, color);
         }
+    }
+
+    /// Draw a line point0 and 1 are in screen coordinates
+    pub fn drawLine(pSelf: *Self, point0: geo.V2f32, point1: geo.V2f32, color: u32) void {
+        // What if diff is negative?
+        var diff = point1.sub(&point0);
+        var dist = diff.length();
+        //if (DBG) warn("drawLine: diff={} dist={}\n", diff, dist);
+        if (dist < 2)
+            return;
+
+        var diff_half = diff.scale(0.5);
+        var mid_point = point0.add(&diff_half);
+        //if (DBG) warn("drawLe: diff_half={} mid_point={}\n", diff_half, mid_point);
+        pSelf.drawPoint(mid_point, color);
+
+        pSelf.drawLine(point0, mid_point, color);
+        pSelf.drawLine(mid_point, point1, color);
     }
 
     /// Render the meshes into the window from the camera's point of view
@@ -170,10 +189,20 @@ pub const Window = struct {
             var transform_matrix = geo.mulM44f32(&world_to_view_matrix, &perspective_matrix);
             if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
 
-            for (mesh.vertices) |vertex, i| {
-                var point = pSelf.project(vertex, &transform_matrix);
-                const color = if (i >= (mesh.vertices.len / 2)) u32(0xffff00ff) else u32(0xff00ffff);
-                pSelf.drawPoint(point, color);
+            for (mesh.faces) |face| {
+                const va = mesh.vertices[face.a];
+                const vb = mesh.vertices[face.b];
+                const vc = mesh.vertices[face.c];
+
+                const pa = pSelf.project(va, &transform_matrix);
+                const pb = pSelf.project(vb, &transform_matrix);
+                const pc = pSelf.project(vc, &transform_matrix);
+
+                const color = 0xffff00ff;
+
+                pSelf.drawLine(pa, pb, color);
+                pSelf.drawLine(pb, pc, color);
+                pSelf.drawLine(pc, pa, color);
             }
         }
     }
@@ -255,6 +284,24 @@ test "window.drawPoint" {
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
 }
 
+test "window.drawLine" {
+    warn("\n");
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 640, 480, "testWindow");
+    defer window.deinit();
+
+    var point1 = geo.V2f32.init(1, 1);
+    var point2 = geo.V2f32.init(4, 4);
+    window.drawLine(point1, point2, 0x80808080);
+    assert(window.getPixel(1, 1) == 0x80808080);
+    assert(window.getPixel(2, 2) == 0x80808080);
+    assert(window.getPixel(3, 3) == 0x80808080);
+}
+
 test "window.render.cube" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
@@ -267,19 +314,33 @@ test "window.render.cube" {
     var mesh: Mesh = undefined;
 
     // Unit cube about 0,0,0
-    mesh = try Mesh.init(pAllocator, "mesh1", 8);
+    mesh = try Mesh.init(pAllocator, "mesh1", 8, 12);
 
-    // Front face
-    mesh.vertices[0] = geo.V3f32.init(1, 1, 1);
-    mesh.vertices[1] = geo.V3f32.init(1, -1, 1);
+    // Unit cube about 0,0,0
+    mesh.vertices[0] = geo.V3f32.init(-1, 1, 1);
+    mesh.vertices[1] = geo.V3f32.init(1, 1, 1);
     mesh.vertices[2] = geo.V3f32.init(-1, -1, 1);
-    mesh.vertices[3] = geo.V3f32.init(-1, 1, 1);
+    mesh.vertices[3] = geo.V3f32.init(1, -1, 1);
 
-    // Back face
-    mesh.vertices[6] = geo.V3f32.init(1, 1, -1);
-    mesh.vertices[7] = geo.V3f32.init(1, -1, -1);
-    mesh.vertices[4] = geo.V3f32.init(-1, -1, -1);
-    mesh.vertices[5] = geo.V3f32.init(-1, 1, -1);
+    mesh.vertices[4] = geo.V3f32.init(-1, 1, -1);
+    mesh.vertices[5] = geo.V3f32.init(1, 1, -1);
+    mesh.vertices[6] = geo.V3f32.init(1, -1, -1);
+    mesh.vertices[7] = geo.V3f32.init(-1, -1, -1);
+
+    // 12 faces
+    mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
+    mesh.faces[1] = Face { .a=1, .b=2, .c=3, };
+    mesh.faces[2] = Face { .a=1, .b=3, .c=6, };
+    mesh.faces[3] = Face { .a=1, .b=5, .c=6, };
+    mesh.faces[4] = Face { .a=0, .b=1, .c=4, };
+    mesh.faces[5] = Face { .a=1, .b=4, .c=5, };
+
+    mesh.faces[6] = Face { .a=2, .b=3, .c=7, };
+    mesh.faces[7] = Face { .a=3, .b=6, .c=7, };
+    mesh.faces[8] = Face { .a=0, .b=2, .c=7, };
+    mesh.faces[9] = Face { .a=0, .b=4, .c=7, };
+    mesh.faces[10] = Face { .a=4, .b=5, .c=6, };
+    mesh.faces[11] = Face { .a=4, .b=6, .c=7, };
 
     var meshes = []Mesh{mesh};
 
@@ -293,7 +354,8 @@ test "window.render.cube" {
     var msf: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
     var end_time: u64 = 0;
-    if (DBG or DBG1 or DBG2) end_time += (5000 * msf);
+    //if (DBG or DBG1 or DBG2) end_time += (5000 * msf);
+    end_time += (5000 * msf);
     while (true) {
         window.clear();
 
@@ -369,9 +431,6 @@ test "window.world_to_screen" {
     while (true) {
         window.clear();
 
-        //if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
-        //window.render(&camera, &meshes);
-
         for (world_vertexs) |world_vert, i| {
             if (DBG) warn("world_vert[{}]  = {}\n", i, &world_vert);
 
@@ -412,32 +471,18 @@ test "window.pts" {
 
         var mesh: Mesh = undefined;
 
-        // vertical line .5 unit above 0,0,0
-        mesh = try Mesh.init(pAllocator, "mesh1", 2);
-        mesh.vertices[0] = geo.V3f32.init(0.0, 0.5, 0.0);
-        mesh.vertices[1] = geo.V3f32.init(0.0, -0.5, 0.0);
-
-        // Box
-        //mesh = try Mesh.init(pAllocator, "mesh1", 4);
-        //mesh.vertices[0] = geo.V3f32.init(0.1, 0.1, 0.0);
-        //mesh.vertices[1] = geo.V3f32.init(-0.1, 0.1, 0.0);
-        //mesh.vertices[2] = geo.V3f32.init(0.1, -0.1, 0.0);
-        //mesh.vertices[3] = geo.V3f32.init(-0.1, -0.1, 0.0);
-
-        // Cube
-        //mesh = try Mesh.init(pAllocator, "mesh1", 8);
-        //mesh.vertices[0] = geo.V3f32.init(0.1, 0.1, 0.1);
-        //mesh.vertices[1] = geo.V3f32.init(-0.1, 0.1, 0.1);
-        //mesh.vertices[2] = geo.V3f32.init(0.1, -0.1, 0.1);
-        //mesh.vertices[3] = geo.V3f32.init(-0.1, -0.1, 0.1);
-        //mesh.vertices[4] = geo.V3f32.init(0.1, 0.1, -0.1);
-        //mesh.vertices[5] = geo.V3f32.init(-0.1, 0.1, -0.1);
-        //mesh.vertices[6] = geo.V3f32.init(0.1, -0.1, -0.1);
-        //mesh.vertices[7] = geo.V3f32.init(-0.1, -0.1, -0.1);
+        // Square
+        mesh = try Mesh.init(pAllocator, "mesh1", 4, 2);
+        mesh.vertices[0] = geo.V3f32.init(-1, 1, 0);
+        mesh.vertices[1] = geo.V3f32.init(1, 1, 0);
+        mesh.vertices[2] = geo.V3f32.init(1, -1, 0);
+        mesh.vertices[3] = geo.V3f32.init(-1, -1, 0);
+        mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
+        mesh.faces[1] = Face { .a=0, .b=2, .c=3 };
 
         var meshes = []Mesh{mesh};
 
-        var camera_position = geo.V3f32.init(0, 0, -2);
+        var camera_position = geo.V3f32.init(0, 0, 3);
         var camera_target = geo.V3f32.initVal(0);
         var camera = Camera.init(camera_position, camera_target);
 
@@ -485,8 +530,10 @@ test "window.pts" {
                 gl.SDLK_ESCAPE => break :done,
                 gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
                 gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
-                gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
-                gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
+
+                // Not working well
+                //gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
+                //gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
                 else => {},
             }
         }
@@ -505,15 +552,15 @@ fn rotate(mod: u16, pos: geo.V3f32, val: f32) geo.V3f32 {
     if (DBG) warn("rotate: mod={x} pos={} rad(val)={}\n", mod, pos, r);
     var new_pos = pos;
     if ((mod & gl.KMOD_LCTRL) != 0) {
-        new_pos = pos.add(&geo.V3f32.init(r, 0, 0));
+        new_pos = new_pos.add(&geo.V3f32.init(r, 0, 0));
         if (DBG) warn("rotate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
-        new_pos = pos.add(&geo.V3f32.init(0, r, 0));
+        new_pos = new_pos.add(&geo.V3f32.init(0, r, 0));
         if (DBG) warn("rotate: add Y\n");
     }
-    if ((mod & gl.KMOD_LALT) != 0) {
-        new_pos = pos.add(&geo.V3f32.init(0, 0, r));
+    if ((mod & gl.KMOD_RCTRL) != 0) {
+        new_pos = new_pos.add(&geo.V3f32.init(0, 0, r));
         if (DBG) warn("rotate: add Z\n");
     }
     if (DBG and !pos.approxEql(&new_pos, 4)) {
