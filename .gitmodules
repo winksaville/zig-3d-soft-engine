@@ -8,3 +8,6 @@
 [submodule "modules/zig-misc"]
 	path = modules/zig-misc
 	url = git@github.com:winksaville/zig-misc
+[submodule "modules/zig-json"]
+	path = modules/zig-json
+	url = git@github.com:winksaville/zig-json.git
