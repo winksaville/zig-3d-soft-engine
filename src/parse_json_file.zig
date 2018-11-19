@@ -68,14 +68,6 @@ test "parse_json_file.dump.suzanne" {
     assert(meshes != null);
 }
 
-fn getValueAsF32(v: json.Value) f32 {
-    return switch (v) {
-        json.Value.Integer => @intToFloat(f32, v.Integer),
-        json.Value.Float => @floatCast(f32, v.Float),
-        else => @panic("expecting either Integer or Float"),
-    };
-}
-
 test "parse_json_file.parse.suzanne" {
     var file_name = "../3d-objects/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
@@ -106,9 +98,9 @@ test "parse_json_file.parse.suzanne" {
     var i: usize = 0;
     var pos_iter = positions.iterator();
     while (i < vertices_count) : (i += 1) {
-        var x = getValueAsF32(pos_iter.next().?);
-        var y = getValueAsF32(pos_iter.next().?);
-        var z = getValueAsF32(pos_iter.next().?);
+        var x = try pos_iter.next().?.asFloat(f32);
+        var y = try pos_iter.next().?.asFloat(f32);
+        var z = try pos_iter.next().?.asFloat(f32);
         mesh.vertices[i] = geo.V3f32.init(x, y, z);
     }
     i = 0;
