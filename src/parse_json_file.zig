@@ -14,7 +14,6 @@ const Face = meshns.Face;
 
 const geo = @import("../modules/zig-geometry/index.zig");
 
-
 const DBG = true;
 
 pub fn parseJsonFile(pAllocator: *Allocator, file_name: []const u8) !json.ValueTree {
@@ -65,6 +64,14 @@ test "parse_json_file.dump.suzanne" {
     assert(meshes != null);
 }
 
+fn getValueAsF32(v: json.Value) f32 {
+    return switch (v) {
+        json.Value.Integer => @intToFloat(f32, v.Integer),
+        json.Value.Float => @floatCast(f32, v.Float),
+        else => @panic("expecting either Integer or Float"),
+    };
+}
+
 test "parse_json_file.parse.suzanne" {
     var file_name = "../3d-objects/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
@@ -95,18 +102,17 @@ test "parse_json_file.parse.suzanne" {
     var i: usize = 0;
     var pos_iter = positions.iterator();
     while (i < vertices_count) : (i += 1) {
-        var x = @floatCast(f32, pos_iter.next().?.Float);
-        var y = @floatCast(f32, pos_iter.next().?.Float);
-        var z = @floatCast(f32, pos_iter.next().?.Float);
+        var x = getValueAsF32(pos_iter.next().?);
+        var y = getValueAsF32(pos_iter.next().?);
+        var z = getValueAsF32(pos_iter.next().?);
         mesh.vertices[i] = geo.V3f32.init(x, y, z);
     }
     i = 0;
     var indicies_iter = indices.iterator();
     while (i < faces_count) : (i += 1) {
-        // TODO: These should be Integers?
-        var a = @floatToInt(usize, indicies_iter.next().?.Float);
-        var b = @floatToInt(usize, indicies_iter.next().?.Float);
-        var c = @floatToInt(usize, indicies_iter.next().?.Float);
+        var a = @intCast(usize, indicies_iter.next().?.Integer);
+        var b = @intCast(usize, indicies_iter.next().?.Integer);
+        var c = @intCast(usize, indicies_iter.next().?.Integer);
         if (DBG) warn("face[{}]={{ .a={} .b={} .c={} }}\n", i, a, b, c);
         mesh.faces[i] = Face { .a=a, .b=b, .c=c };
     }
