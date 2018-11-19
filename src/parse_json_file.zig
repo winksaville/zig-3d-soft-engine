@@ -14,7 +14,7 @@ const Face = meshns.Face;
 
 const geo = @import("../modules/zig-geometry/index.zig");
 
-const DBG = true;
+const DBG = false;
 
 pub fn parseJsonFile(pAllocator: *Allocator, file_name: []const u8) !json.ValueTree {
     var contents = try readFile(pAllocator, file_name);
@@ -58,7 +58,11 @@ test "parse_json_file.dump.suzanne" {
     defer tree.deinit();
 
     var root = tree.root;
-    root.dump();
+    if (DBG) {
+        warn("\n");
+        root.dump();
+        warn("\n");
+    }
 
     var meshes = root.Object.get("meshes");
     assert(meshes != null);
