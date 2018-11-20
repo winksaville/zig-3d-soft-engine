@@ -60,7 +60,7 @@ test "parse_json_file.dump.suzanne" {
     var root = tree.root;
     if (DBG) {
         warn("\n");
-        root.dump();
+        root.dumpIndent(2);
         warn("\n");
     }
 
