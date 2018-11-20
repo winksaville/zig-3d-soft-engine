@@ -10,12 +10,14 @@ const gl = @import("../modules/zig-sdl2/src/index.zig");
 
 const geo = @import("../modules/zig-geometry/index.zig");
 
+const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
+
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 
@@ -210,6 +212,10 @@ pub const Window = struct {
 
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
+        // Right now window.suzanne is upside down, change unitY to unitY().neg() and
+        // she'll turn right side up. This isn't correct, I'm not sure if the bug is
+        // in lookAtLh or somewhere else. Also, rotation's maybe backwards I'm not sure
+        // what direction things should spin :)
         var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &geo.V3f32.unitY());
         if (DBG) warn("view_matrix:\n{}", &view_matrix);
 
@@ -520,14 +526,86 @@ test "window.pts" {
 
         var meshes = []Mesh{mesh};
 
-        var camera_position = geo.V3f32.init(0, 0, 3);
+        var camera_position = geo.V3f32.init(0, 0, -3);
         var camera_target = geo.V3f32.initVal(0);
         var camera = Camera.init(camera_position, camera_target);
 
-        // Loop until end_time is reached but always loop once :)
-        var msf: u64 = time.ns_per_s / time.ms_per_s;
-        var timer = try time.Timer.start();
-        var end_time: u64 = 0;
+        var ks = KeyState{
+            .new_key = false,
+            .code = undefined,
+            .mod = undefined,
+            .ei = ie.EventInterface{
+                .event = undefined,
+                .handleKeyEvent = handleKeyEvent,
+                .handleMouseEvent = IgnoreEvent,
+                .handleOtherEvent = IgnoreEvent,
+            },
+        };
+
+        done: while (true) {
+            // Update the display
+            window.clear();
+
+            if (DBG or DBG1 or DBG2) warn("\n");
+
+            if (DBG1) warn("camera={}\n", &camera.position);
+            if (DBG1) warn("rotation={}\n", meshes[0].rotation);
+            window.render(&camera, &meshes);
+
+            var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
+            window.drawPoint(center, 0xffffffff);
+
+            window.present();
+
+            // Wait for a key
+            ks.new_key = false;
+            noEvents: while (ks.new_key == false) {
+                _ = ie.pollInputEvent(&ks, &ks.ei);
+            }
+
+            // Process the key
+            if (DBG) warn("ks.mod={}\n", ks.mod);
+            switch (ks.code) {
+                gl.SDLK_ESCAPE => break :done,
+                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
+                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
+
+                // Not working well
+                //gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
+                //gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
+                else => {},
+            }
+        }
+    }
+}
+
+test "window.suzanne" {
+    if (DBG) {
+        var direct_allocator = std.heap.DirectAllocator.init();
+        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+        defer arena_allocator.deinit();
+        var pAllocator = &arena_allocator.allocator;
+
+        var window = try Window.init(pAllocator, 512, 512, "testWindow");
+        defer window.deinit();
+
+        // Black background color
+        window.setBgColor(0);
+
+        var file_name = "../3d-objects/suzanne.babylon";
+        var tree = try parseJsonFile(pAllocator, file_name);
+        defer tree.deinit();
+
+        var mesh = try Mesh.initJson(pAllocator, "suzanne", tree);
+        assert(std.mem.eql(u8, mesh.name, "suzanne"));
+        assert(mesh.vertices.len == 507);
+        assert(mesh.faces.len == 968);
+
+        var meshes = []Mesh{mesh};
+
+        var camera_position = geo.V3f32.init(0, 0, -3);
+        var camera_target = geo.V3f32.initVal(0);
+        var camera = Camera.init(camera_position, camera_target);
 
         var ks = KeyState{
             .new_key = false,
