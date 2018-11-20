@@ -6,6 +6,13 @@ const math = std.math;
 
 const geo = @import("../modules/zig-geometry/index.zig");
 
+const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
+
+const json = @import("../modules/zig-json/json.zig");
+
+const DBG = false;
+const DBG1 = false;
+
 pub const Face = struct {
     a: usize,
     b: usize,
@@ -30,9 +37,51 @@ pub const Mesh = struct {
             .faces = try pAllocator.alloc(Face, faces_count),
         };
     }
+
+    pub fn initJson(pAllocator: *Allocator, name: []const u8, tree: json.ValueTree) !Self {
+        var root = tree.root;
+
+        var meshes = root.Object.get("meshes").?.value.Array;
+
+        var positions = meshes.items[0].Object.get("positions").?.value.Array;
+        if (DBG) warn("positions.len={}\n", positions.len);
+
+        var normals = meshes.items[0].Object.get("normals").?.value.Array;
+        if (DBG) warn("normals.len={}\n", normals.len);
+
+        var indices = meshes.items[0].Object.get("indices").?.value.Array;
+        if (DBG) warn("indices.len={}\n", indices.len);
+
+        var vertices_count = positions.len / 3;
+        var faces_count = indices.len / 3;
+        if (DBG) warn("vertices_count={} faces_count={}\n", vertices_count, faces_count);
+
+        var mesh = try Mesh.init(pAllocator, name, vertices_count, faces_count);
+
+        var i: usize = 0;
+        var pos_iter = positions.iterator();
+        while (i < vertices_count) : (i += 1) {
+            var x = try pos_iter.next().?.asFloat(f32);
+            var y = try pos_iter.next().?.asFloat(f32);
+            var z = try pos_iter.next().?.asFloat(f32);
+            mesh.vertices[i] = geo.V3f32.init(x, y, z);
+        }
+        i = 0;
+        var indicies_iter = indices.iterator();
+        while (i < faces_count) : (i += 1) {
+            var a = @intCast(usize, indicies_iter.next().?.Integer);
+            var b = @intCast(usize, indicies_iter.next().?.Integer);
+            var c = @intCast(usize, indicies_iter.next().?.Integer);
+            if (DBG1) warn("face[{}]={{ .a={} .b={} .c={} }}\n", i, a, b, c);
+            mesh.faces[i] = Face { .a=a, .b=b, .c=c };
+        }
+
+        return mesh;
+    }
 };
 
 test "mesh" {
+    if (DBG or DBG1) warn("\n");
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -98,4 +147,17 @@ test "mesh" {
     mesh.faces[9] = Face { .a=0, .b=4, .c=7, };
     mesh.faces[10] = Face { .a=4, .b=5, .c=6, };
     mesh.faces[11] = Face { .a=4, .b=6, .c=7, };
+}
+
+test "mesh.suzanne" {
+    if (DBG or DBG1) warn("\n");
+    var file_name = "../3d-objects/suzanne.babylon";
+    var pAllocator = std.heap.c_allocator;
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
+
+    var mesh = try Mesh.initJson(pAllocator, "suzanne", tree);
+    assert(std.mem.eql(u8, mesh.name, "suzanne"));
+    assert(mesh.vertices.len == 507);
+    assert(mesh.faces.len == 968);
 }
