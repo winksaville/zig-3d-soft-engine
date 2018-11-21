@@ -42,7 +42,7 @@ fn getFileSize(file_name: []const u8) !usize {
 }
 
 test "parse_json_file.readFile" {
-    var file_name = "../3d-objects/suzanne.babylon";
+    var file_name = "3d-objects/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
     var contents = try readFile(pAllocator, file_name);
     //warn("suzanne contents:\n{}\n", contents);
@@ -52,7 +52,7 @@ test "parse_json_file.readFile" {
 }
 
 test "parse_json_file.dump.suzanne" {
-    var file_name = "../3d-objects/suzanne.babylon";
+    var file_name = "3d-objects/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
@@ -69,7 +69,7 @@ test "parse_json_file.dump.suzanne" {
 }
 
 test "parse_json_file.parse.suzanne" {
-    var file_name = "../3d-objects/suzanne.babylon";
+    var file_name = "3d-objects/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();

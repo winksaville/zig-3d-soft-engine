@@ -151,7 +151,7 @@ test "mesh" {
 
 test "mesh.suzanne" {
     if (DBG or DBG1) warn("\n");
-    var file_name = "../3d-objects/suzanne.babylon";
+    var file_name = "3d-objects/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
