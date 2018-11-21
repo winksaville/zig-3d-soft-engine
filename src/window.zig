@@ -500,7 +500,7 @@ test "window.world_to_screen" {
     }
 }
 
-test "window.pts" {
+test "window.keyctrl.triangle" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
         var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
@@ -515,71 +515,20 @@ test "window.pts" {
 
         var mesh: Mesh = undefined;
 
-        // Square
-        mesh = try Mesh.init(pAllocator, "mesh1", 4, 2);
-        mesh.vertices[0] = geo.V3f32.init(-1, 1, 0);
-        mesh.vertices[1] = geo.V3f32.init(1, 1, 0);
-        mesh.vertices[2] = geo.V3f32.init(1, -1, 0);
-        mesh.vertices[3] = geo.V3f32.init(-1, -1, 0);
+        // Triangle
+        mesh = try Mesh.init(pAllocator, "mesh1", 3, 1);
+        mesh.vertices[0] = geo.V3f32.init(0, 1, 0);
+        mesh.vertices[1] = geo.V3f32.init(1, -1, 0);
+        mesh.vertices[2] = geo.V3f32.init(-1, -1, 0);
         mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
-        mesh.faces[1] = Face { .a=0, .b=2, .c=3 };
 
         var meshes = []Mesh{mesh};
 
-        var camera_position = geo.V3f32.init(0, 0, -3);
-        var camera_target = geo.V3f32.initVal(0);
-        var camera = Camera.init(camera_position, camera_target);
-
-        var ks = KeyState{
-            .new_key = false,
-            .code = undefined,
-            .mod = undefined,
-            .ei = ie.EventInterface{
-                .event = undefined,
-                .handleKeyEvent = handleKeyEvent,
-                .handleMouseEvent = IgnoreEvent,
-                .handleOtherEvent = IgnoreEvent,
-            },
-        };
-
-        done: while (true) {
-            // Update the display
-            window.clear();
-
-            if (DBG or DBG1 or DBG2) warn("\n");
-
-            if (DBG1) warn("camera={}\n", &camera.position);
-            if (DBG1) warn("rotation={}\n", meshes[0].rotation);
-            window.render(&camera, &meshes);
-
-            var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-            window.drawPoint(center, 0xffffffff);
-
-            window.present();
-
-            // Wait for a key
-            ks.new_key = false;
-            noEvents: while (ks.new_key == false) {
-                _ = ie.pollInputEvent(&ks, &ks.ei);
-            }
-
-            // Process the key
-            if (DBG) warn("ks.mod={}\n", ks.mod);
-            switch (ks.code) {
-                gl.SDLK_ESCAPE => break :done,
-                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
-                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
-
-                // Not working well
-                //gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
-                //gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
-                else => {},
-            }
-        }
+        keyCtrlMeshes(&window, &meshes);
     }
 }
 
-test "window.suzanne" {
+test "window.keyctrl.suzanne" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
         var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
@@ -602,57 +551,7 @@ test "window.suzanne" {
         assert(mesh.faces.len == 968);
 
         var meshes = []Mesh{mesh};
-
-        var camera_position = geo.V3f32.init(0, 0, -3);
-        var camera_target = geo.V3f32.initVal(0);
-        var camera = Camera.init(camera_position, camera_target);
-
-        var ks = KeyState{
-            .new_key = false,
-            .code = undefined,
-            .mod = undefined,
-            .ei = ie.EventInterface{
-                .event = undefined,
-                .handleKeyEvent = handleKeyEvent,
-                .handleMouseEvent = IgnoreEvent,
-                .handleOtherEvent = IgnoreEvent,
-            },
-        };
-
-        done: while (true) {
-            // Update the display
-            window.clear();
-
-            if (DBG or DBG1 or DBG2) warn("\n");
-
-            if (DBG1) warn("camera={}\n", &camera.position);
-            if (DBG1) warn("rotation={}\n", meshes[0].rotation);
-            window.render(&camera, &meshes);
-
-            var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-            window.drawPoint(center, 0xffffffff);
-
-            window.present();
-
-            // Wait for a key
-            ks.new_key = false;
-            noEvents: while (ks.new_key == false) {
-                _ = ie.pollInputEvent(&ks, &ks.ei);
-            }
-
-            // Process the key
-            if (DBG) warn("ks.mod={}\n", ks.mod);
-            switch (ks.code) {
-                gl.SDLK_ESCAPE => break :done,
-                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
-                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
-
-                // Not working well
-                //gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
-                //gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
-                else => {},
-            }
-        }
+        keyCtrlMeshes(&window, &meshes);
     }
 }
 
@@ -719,6 +618,59 @@ fn handleKeyEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
     return ie.EventResult.Continue;
 }
 
-fn IgnoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
+fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
     return ie.EventResult.Continue;
+}
+
+fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
+    var camera_position = geo.V3f32.init(0, 0, -3);
+    var camera_target = geo.V3f32.initVal(0);
+    var camera = Camera.init(camera_position, camera_target);
+
+    var ks = KeyState{
+        .new_key = false,
+        .code = undefined,
+        .mod = undefined,
+        .ei = ie.EventInterface{
+            .event = undefined,
+            .handleKeyEvent = handleKeyEvent,
+            .handleMouseEvent = ignoreEvent,
+            .handleOtherEvent = ignoreEvent,
+        },
+    };
+
+    done: while (true) {
+        // Update the display
+        pWindow.clear();
+
+        if (DBG or DBG1 or DBG2) warn("\n");
+
+        if (DBG1) warn("camera={}\n", &camera.position);
+        if (DBG1) warn("rotation={}\n", meshes[0].rotation);
+        pWindow.render(&camera, meshes);
+
+        var center = geo.V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
+        pWindow.drawPoint(center, 0xffffffff);
+
+        pWindow.present();
+
+        // Wait for a key
+        ks.new_key = false;
+        noEvents: while (ks.new_key == false) {
+            _ = ie.pollInputEvent(&ks, &ks.ei);
+        }
+
+        // Process the key
+        if (DBG) warn("ks.mod={}\n", ks.mod);
+        switch (ks.code) {
+            gl.SDLK_ESCAPE => break :done,
+            gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
+            gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
+
+            // Not working well
+            //gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
+            //gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
+            else => {},
+        }
+    }
 }
