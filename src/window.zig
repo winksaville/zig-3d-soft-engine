@@ -17,9 +17,10 @@ const Mesh = @import("mesh.zig").Mesh;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
+const DBG3 = false;
 
 pub const Window = struct {
     const Self = @This();
@@ -120,6 +121,7 @@ pub const Window = struct {
     }
 
     pub fn putPixel(pSelf: *Self, x: usize, y: usize, color: u32) void {
+        if (DBG3) warn("putPixel: x={} y={} c={x}\n", x, y, color);
         pSelf.pixels[(y * @intCast(usize, pSelf.widthci)) + x] = color;
     }
 
@@ -212,10 +214,6 @@ pub const Window = struct {
 
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
-        // Right now window.suzanne is upside down, change unitY to unitY().neg() and
-        // she'll turn right side up. This isn't correct, I'm not sure if the bug is
-        // in lookAtLh or somewhere else. Also, rotation's maybe backwards I'm not sure
-        // what direction things should spin :)
         var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &geo.V3f32.unitY());
         if (DBG) warn("view_matrix:\n{}", &view_matrix);
 
@@ -277,7 +275,6 @@ test "window" {
 }
 
 test "window.project" {
-    warn("\n");
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -331,7 +328,6 @@ test "window.drawPoint" {
 }
 
 test "window.drawLine" {
-    warn("\n");
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -417,7 +413,7 @@ test "window.render.cube" {
     }
 }
 
-test "window.world_to_screen" {
+test "window.world.to.screen" {
     if (DBG) warn("\n");
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
@@ -440,7 +436,7 @@ test "window.world_to_screen" {
     var camera_to_perspective_matrix = geo.perspectiveM44(f32, fov, aspect, znear, zfar);
 
     var world_to_camera_matrix = geo.m44f32_unit;
-    world_to_camera_matrix.data[3][2] = -2;
+    world_to_camera_matrix.data[3][2] = 2;
 
     var world_vertexs = []geo.V3f32{
         geo.V3f32.init(0, 1.0, 0),
@@ -449,29 +445,29 @@ test "window.world_to_screen" {
         geo.V3f32.init(0, -1.0, -0.2),
     };
     var expected_camera_vertexs = []geo.V3f32{
-        geo.V3f32.init(0, 1.0, -2),
-        geo.V3f32.init(0, -1.0, -2),
-        geo.V3f32.init(0, 1.0, -1.8),
-        geo.V3f32.init(0, -1.0, -2.2),
+        geo.V3f32.init(0, 1.0, 2),
+        geo.V3f32.init(0, -1.0, 2.0),
+        geo.V3f32.init(0, 1.0, 2.2),
+        geo.V3f32.init(0, -1.0, 1.8),
     };
     var expected_projected_vertexs = []geo.V3f32{
-        geo.V3f32.init(0, 0.5, 1.0050504),
-        geo.V3f32.init(0, -0.5, 1.0050504),
-        geo.V3f32.init(0, 0.5555555, 1.0044893),
-        geo.V3f32.init(0, -0.4545454, 1.0055095),
+        geo.V3f32.init(0, 0.5, -1.0151515),
+        geo.V3f32.init(0, -0.5, -1.0151515),
+        geo.V3f32.init(0, 0.4545454, -1.0146923),
+        geo.V3f32.init(0, -0.5555555, -1.0157126),
     };
     var expected_screen_vertexs = [][2]u32{
         []u32{ 256, 128 },
         []u32{ 256, 384 },
-        []u32{ 256, 113 },
-        []u32{ 256, 372 },
+        []u32{ 256, 139 },
+        []u32{ 256, 398 },
     };
 
     // Loop until end_time is reached but always loop once :)
     var msf: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
     var end_time: u64 = 0;
-    if (DBG or DBG1 or DBG2) end_time += (2000 * msf);
+    if (DBG or DBG1 or DBG2 or DBG3) end_time += (2000 * msf);
     while (true) {
         window.clear();
 
@@ -623,7 +619,7 @@ fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
 }
 
 fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
-    var camera_position = geo.V3f32.init(0, 0, -3);
+    var camera_position = geo.V3f32.init(0, 0, 3);
     var camera_target = geo.V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
 
