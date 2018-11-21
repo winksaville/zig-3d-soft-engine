@@ -11,3 +11,6 @@
 [submodule "modules/zig-json"]
 	path = modules/zig-json
 	url = git@github.com:winksaville/zig-json.git
+[submodule "modules/zig-geometry"]
+	path = modules/zig-geometry
+	url = git@github.com:winksaville/zig-geometry.git
