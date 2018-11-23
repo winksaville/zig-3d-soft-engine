@@ -17,10 +17,12 @@ const Mesh = @import("mesh.zig").Mesh;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
+
+const DBG_RenderPoints = true;
 
 pub const Window = struct {
     const Self = @This();
@@ -221,32 +223,39 @@ pub const Window = struct {
         var znear: f32 = 0.01;
         var zfar: f32 = 1.0;
         var perspective_matrix = geo.perspectiveM44(f32, fov, pSelf.widthf / pSelf.heightf, znear, zfar);
-        if (DBG) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", geo.deg(fov), znear, zfar, &perspective_matrix);
+        if (DBG) warn("\nperspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &perspective_matrix);
 
         for (meshes) |mesh| {
             var rotation_matrix = geo.rotationYawPitchRollV3f32(mesh.rotation);
             var translation_matrix = geo.translationV3f32(mesh.position);
             var world_matrix = geo.mulM44f32(&translation_matrix, &rotation_matrix);
-            if (DBG) warn("world_matrix:\n{}", &world_matrix);
+            if (DBG) warn("\nworld_matrix:\n{}", &world_matrix);
 
             var world_to_view_matrix = geo.mulM44f32(&world_matrix, &view_matrix);
             var transform_matrix = geo.mulM44f32(&world_to_view_matrix, &perspective_matrix);
-            if (DBG) warn("transform_matrix:\n{}", &transform_matrix);
+            if (DBG) warn("\ntransform_matrix:\n{}", &transform_matrix);
 
             for (mesh.faces) |face| {
                 const va = mesh.vertices[face.a];
                 const vb = mesh.vertices[face.b];
                 const vc = mesh.vertices[face.c];
+                if (DBG3) warn("\nva={} vb={} vc={}\n", va, vb, vc);
 
                 const pa = pSelf.project(va, &transform_matrix);
                 const pb = pSelf.project(vb, &transform_matrix);
                 const pc = pSelf.project(vc, &transform_matrix);
-
+                if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
                 const color = 0xffff00ff;
 
-                pSelf.drawBline(pa, pb, color);
-                pSelf.drawBline(pb, pc, color);
-                pSelf.drawBline(pc, pa, color);
+                if (DBG_RenderPoints) {
+                    pSelf.drawPoint(pa, color);
+                    pSelf.drawPoint(pb, color);
+                    pSelf.drawPoint(pc, color);
+                } else {
+                    pSelf.drawBline(pa, pb, color);
+                    pSelf.drawBline(pb, pc, color);
+                    pSelf.drawBline(pc, pa, color);
+                }
             }
         }
     }
