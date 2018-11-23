@@ -523,7 +523,7 @@ test "window.keyctrl.triangle" {
         // Triangle
         mesh = try Mesh.init(pAllocator, "mesh1", 3, 1);
         mesh.vertices[0] = geo.V3f32.init(0, 1, 0);
-        mesh.vertices[1] = geo.V3f32.init(1, -1, 0);
+        mesh.vertices[1] = geo.V3f32.init(0.5, -0.5, 0);
         mesh.vertices[2] = geo.V3f32.init(-1, -1, 0);
         mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
 
