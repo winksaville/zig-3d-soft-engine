@@ -9,6 +9,9 @@ const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
 const geo = @import("../modules/zig-geometry/index.zig");
+const V2f32 = geo.V2f32;
+const V3f32 = geo.V3f32;
+const M44f32 = geo.M44f32;
 
 const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
 
@@ -22,7 +25,12 @@ const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
 
-const DBG_RenderPoints = true;
+const RenderMode = enum {
+    Points,
+    Lines,
+    Triangles,
+};
+const DBG_RenderMode = RenderMode.Triangles;
 
 pub const Window = struct {
     const Self = @This();
@@ -152,7 +160,20 @@ pub const Window = struct {
 
     /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
     pub fn drawPointXy(pSelf: *Self, x: isize, y: isize, color: u32) void {
-        //if (DBG) warn("drawPointXy: x={.3} y={.3} c={x}\n", x, y, color);
+        //if (DBG) warn("drawPointXy: x={} y={} c={x}\n", x, y, color);
+        if ((x >= 0) and (y >= 0)) {
+            var ux = @bitCast(usize, x);
+            var uy = @bitCast(usize, y);
+            if ((ux < pSelf.width) and (uy < pSelf.height)) {
+                //if (DBG) warn("drawPointXy: putting x={} y={} c={x}\n", ux, uy, color);
+                pSelf.putPixel(ux, uy, color);
+            }
+        }
+    }
+
+    /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
+    pub fn drawPointXyz(pSelf: *Self, x: isize, y: isize, z: f32, color: u32) void {
+        //if (DBG) warn("drawPointXy: x={} y={} z={.3} c={x}\n", x, y, color);
         if ((x >= 0) and (y >= 0)) {
             var ux = @bitCast(usize, x);
             var uy = @bitCast(usize, y);
@@ -220,9 +241,105 @@ pub const Window = struct {
         return geo.V3f32.init(x, y, point.z());
     }
 
-    /// Draw a Vec2 point in screen coordinates clipping it if its outside the screen
+    /// Draw a V3f32 point in screen coordinates clipping it if its outside the screen
     pub fn drawPointV3f32(pSelf: *Self, point: geo.V3f32, color: u32) void {
-        pSelf.drawPointXy(@floatToInt(isize, point.x()), @floatToInt(isize, point.y()), color);
+        pSelf.drawPointXyz(@floatToInt(isize, math.trunc(point.x())), @floatToInt(isize, math.trunc(point.y())), point.z(), color);
+    }
+
+    /// Clamp value to between min and max parameters
+    pub fn clamp(value: f32, min: f32, max: f32) f32 {
+        return math.max(min, math.min(value, max));
+    }
+
+    /// Interplate between min and max as a percentage between
+    /// min and max as defined by the gradient. With 0.0 <= gradiant <= 1.0.
+    pub fn interpolate(min: f32, max: f32, gradient: f32) f32 {
+        return min + (max - min) * clamp(gradient, 0, 1);
+    }
+
+    /// Draw a horzitontal scan line at y between line a lined defined by
+    /// pa/bp to another defined line pc/pb. It is assumed the have
+    /// already been sorted.
+    pub fn processScanLine(pSelf: *Self, y: isize, pa: geo.V3f32, pb: geo.V3f32, pc: geo.V3f32, pd: geo.V3f32, color: u32) void {
+        // Compute the gradiants and if the line are just points then gradient is 1
+        const gradient1: f32 = if (pa.y() == pb.y()) 1 else (@intToFloat(f32, y) - pa.y()) / (pb.y() - pa.y());
+        const gradient2: f32 = if (pc.y() == pd.y()) 1 else (@intToFloat(f32, y) - pc.y()) / (pd.y() - pc.y());
+
+        // Define the start and end point for x
+        var sx: isize = @floatToInt(isize, interpolate(pa.x(), pb.x(), gradient1));
+        var ex: isize = @floatToInt(isize, interpolate(pc.x(), pd.x(), gradient2));
+
+        // Draw a horzitional line between start and end x
+        var x: isize = sx;
+        while (x < ex) : (x += 1) {
+            pSelf.drawPointXy(x, y, color);
+        }
+    }
+
+    pub fn drawTriangle(pSelf: *Self, p1: V3f32, p2: V3f32, p3: V3f32, color: u32) void {
+        // Sort the points finding top, mid, bottom.
+        var t = p1; // Top
+        var m = p2; // Mid
+        var b = p3; // Bottom
+
+        // Find top, i.e. the point with the smallest y value
+        if (t.y() > m.y()) {
+            mem.swap(V3f32, &t, &m);
+        }
+        if (t.y() > b.y()) {
+            mem.swap(V3f32, &t, &b);
+        }
+
+        // Now switch mid and bottom if they are out of order
+        if (m.y() > b.y()) {
+            mem.swap(V3f32, &m, &b);
+        }
+
+        // Compute the inverse slopes
+        // http://en.wikipedia.org/wiki/Slope
+        var slope_t_m: f32 = if ((m.y() - t.y()) > 0) (m.x() - t.x()) / (m.y() - t.y()) else 0;
+        var slope_t_b: f32 = if ((b.y() - t.y()) > 0) (b.x() - t.x()) / (b.y() - t.y()) else 0;
+
+        // Two cases, 1) triangles with mid on the right
+        if (slope_t_m > slope_t_b) {
+            // Triangles with mid on the right
+            // t
+            // |\
+            // | \
+            // |  \
+            // |   m
+            // |  /
+            // | /
+            // |/
+            // b
+            var y: isize = @floatToInt(isize, math.trunc(t.y()));
+            while (y <= @floatToInt(isize, math.trunc(b.y()))) : (y += 1) {
+                if (y < @floatToInt(isize, math.trunc(m.y()))) {
+                    pSelf.processScanLine(y, t, b, t, m, color);
+                } else {
+                    pSelf.processScanLine(y, t, b, m, b, color);
+                }
+            }
+        } else {
+            // Triangles with mid on the left
+            //     t
+            //    /|
+            //   / |
+            //  /  |
+            // m   |
+            //  \  |
+            //   \ |
+            //    \|
+            //     b
+            var y: isize = @floatToInt(isize, math.trunc(t.y()));
+            while (y <= @floatToInt(isize, math.trunc(b.y()))) : (y += 1) {
+                if (y < @floatToInt(isize, math.trunc(m.y()))) {
+                    pSelf.processScanLine(y, t, m, t, b, color);
+                } else {
+                    pSelf.processScanLine(y, m, b, t, b, color);
+                }
+            }
+        }
     }
 
     /// Render the meshes into the window from the camera's point of view
@@ -246,26 +363,46 @@ pub const Window = struct {
             var transform_matrix = geo.mulM44f32(&world_to_view_matrix, &perspective_matrix);
             if (DBG) warn("\ntransform_matrix:\n{}", &transform_matrix);
 
-            for (mesh.faces) |face| {
+            for (mesh.faces) |face, i| {
                 const va = mesh.vertices[face.a];
                 const vb = mesh.vertices[face.b];
                 const vc = mesh.vertices[face.c];
                 if (DBG3) warn("\nva={} vb={} vc={}\n", va, vb, vc);
 
-                const pa = pSelf.projectRetV2f32(va, &transform_matrix);
-                const pb = pSelf.projectRetV2f32(vb, &transform_matrix);
-                const pc = pSelf.projectRetV2f32(vc, &transform_matrix);
-                if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
-                const color = 0xffff00ff;
+                var color: u32 = 0xffff00ff;
 
-                if (DBG_RenderPoints) {
-                    pSelf.drawPointV2f32(pa, color);
-                    pSelf.drawPointV2f32(pb, color);
-                    pSelf.drawPointV2f32(pc, color);
-                } else {
-                    pSelf.drawBline(pa, pb, color);
-                    pSelf.drawBline(pb, pc, color);
-                    pSelf.drawBline(pc, pa, color);
+                switch (DBG_RenderMode) {
+                    RenderMode.Points => {
+                        const pa = pSelf.projectRetV2f32(va, &transform_matrix);
+                        const pb = pSelf.projectRetV2f32(vb, &transform_matrix);
+                        const pc = pSelf.projectRetV2f32(vc, &transform_matrix);
+                        if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
+
+                        pSelf.drawPointV2f32(pa, color);
+                        pSelf.drawPointV2f32(pb, color);
+                        pSelf.drawPointV2f32(pc, color);
+                    },
+                    RenderMode.Lines => {
+                        const pa = pSelf.projectRetV2f32(va, &transform_matrix);
+                        const pb = pSelf.projectRetV2f32(vb, &transform_matrix);
+                        const pc = pSelf.projectRetV2f32(vc, &transform_matrix);
+                        if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
+
+                        pSelf.drawBline(pa, pb, color);
+                        pSelf.drawBline(pb, pc, color);
+                        pSelf.drawBline(pc, pa, color);
+                    },
+                    RenderMode.Triangles => {
+                        const pa = pSelf.projectRetV3f32(va, &transform_matrix);
+                        const pb = pSelf.projectRetV3f32(vb, &transform_matrix);
+                        const pc = pSelf.projectRetV3f32(vc, &transform_matrix);
+                        if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
+
+                        var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
+                        var colorU32: u32 = @floatToInt(u32, math.round(colorF32 * 256.0)) & 0xff;
+                        color = (colorU32 << 24) | (colorU32 << 16) | (colorU32 << 8) | colorU32;
+                        pSelf.drawTriangle(pa, pb, pc, color);
+                    },
                 }
             }
         }
@@ -382,23 +519,23 @@ test "window.projectRetV3f32" {
     assert(r.y() == 0);
 }
 
-test "window.drawPointV3f32" {
-    var direct_allocator = std.heap.DirectAllocator.init();
-    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-    defer arena_allocator.deinit();
-    var pAllocator = &arena_allocator.allocator;
-
-    var window = try Window.init(pAllocator, 640, 480, "testWindow");
-    defer window.deinit();
-
-    var p1 = geo.V3f32.init(0, 0, 0);
-    window.drawPointV3f32(p1, 0x80808080);
-    assert(window.getPixel(0, 0) == 0x80808080);
-
-    p1 = geo.V3f32.init(window.widthf / 2, window.heightf / 2, 0);
-    window.drawPointV3f32(p1, 0x80808080);
-    assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
-}
+//test "window.drawPointV3f32" {
+//    var direct_allocator = std.heap.DirectAllocator.init();
+//    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+//    defer arena_allocator.deinit();
+//    var pAllocator = &arena_allocator.allocator;
+//
+//    var window = try Window.init(pAllocator, 640, 480, "testWindow");
+//    defer window.deinit();
+//
+//    var p1 = geo.V3f32.init(0, 0, 0);
+//    window.drawPointV3f32(p1, 0x80808080);
+//    assert(window.getPixel(0, 0) == 0x80808080);
+//
+//    p1 = geo.V3f32.init(window.widthf / 2, window.heightf / 2, 0);
+//    window.drawPointV3f32(p1, 0x80808080);
+//    assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
+//}
 
 test "window.drawLine" {
     var direct_allocator = std.heap.DirectAllocator.init();
