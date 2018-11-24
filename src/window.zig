@@ -17,7 +17,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -208,6 +208,23 @@ pub const Window = struct {
         }
     }
 
+    /// Project takes a 3D coord and converts it to a 2D point
+    /// using the transform matrix.
+    pub fn projectRetV3f32(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V3f32 {
+        if (DBG1) warn("projectRetV3f32:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
+        var point = coord.transform(transMat);
+
+        var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
+        var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
+
+        return geo.V3f32.init(x, y, point.z());
+    }
+
+    /// Draw a Vec2 point in screen coordinates clipping it if its outside the screen
+    pub fn drawPointV3f32(pSelf: *Self, point: geo.V3f32, color: u32) void {
+        pSelf.drawPointXy(@floatToInt(isize, point.x()), @floatToInt(isize, point.y()), color);
+    }
+
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &geo.V3f32.unitY());
@@ -327,6 +344,59 @@ test "window.drawPointV2f32" {
 
     p1 = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
     window.drawPointV2f32(p1, 0x80808080);
+    assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
+}
+
+test "window.projectRetV3f32" {
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 640, 480, "testWindow");
+    defer window.deinit();
+
+    var v1 = geo.V3f32.init(0, 0, 0);
+    var r = window.projectRetV3f32(v1, &geo.m44f32_unit);
+    assert(r.x() == window.widthf / 2.0);
+    assert(r.y() == window.heightf / 2.0);
+
+    v1 = geo.V3f32.init(-0.5, 0.5, 0);
+    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
+    assert(r.x() == 0);
+    assert(r.y() == 0);
+
+    v1 = geo.V3f32.init(0.5, -0.5, 0);
+    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
+    assert(r.x() == window.widthf);
+    assert(r.y() == window.heightf);
+
+    v1 = geo.V3f32.init(-0.5, -0.5, 0);
+    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
+    assert(r.x() == 0);
+    assert(r.y() == window.heightf);
+
+    v1 = geo.V3f32.init(0.5, 0.5, 0);
+    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
+    assert(r.x() == window.widthf);
+    assert(r.y() == 0);
+}
+
+test "window.drawPointV3f32" {
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 640, 480, "testWindow");
+    defer window.deinit();
+
+    var p1 = geo.V3f32.init(0, 0, 0);
+    window.drawPointV3f32(p1, 0x80808080);
+    assert(window.getPixel(0, 0) == 0x80808080);
+
+    p1 = geo.V3f32.init(window.widthf / 2, window.heightf / 2, 0);
+    window.drawPointV3f32(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
 }
 
