@@ -124,11 +124,11 @@ pub const Window = struct {
 
     pub fn putPixel(pSelf: *Self, x: usize, y: usize, color: u32) void {
         if (DBG3) warn("putPixel: x={} y={} c={x}\n", x, y, color);
-        pSelf.pixels[(y * @intCast(usize, pSelf.widthci)) + x] = color;
+        pSelf.pixels[(y * pSelf.width) + x] = color;
     }
 
     pub fn getPixel(pSelf: *Self, x: usize, y: usize) u32 {
-        return pSelf.pixels[(y * @intCast(usize, pSelf.widthci)) + x];
+        return pSelf.pixels[(y * pSelf.width) + x];
     }
 
     pub fn present(pSelf: *Self) void {
@@ -140,20 +140,14 @@ pub const Window = struct {
 
     /// Project takes a 3D coord and converts it to a 2D point
     /// using the transform matrix.
-    pub fn project(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V2f32 {
-        if (DBG1) warn("project:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
+    pub fn projectRetV2f32(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V2f32 {
+        if (DBG1) warn("projectRetV2f32:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
         return geo.projectToScreenCoord(pSelf.widthf, pSelf.heightf, coord, transMat);
     }
 
     /// Draw a Vec2 point in screen coordinates clipping it if its outside the screen
-    pub fn drawPoint(pSelf: *Self, point: geo.V2f32, color: u32) void {
-        //if (DBG) warn("drawPoint: x={.3} y={.3} c={x}\n", point.x(), point.y(), color);
-        if ((point.x() >= 0) and (point.y() >= 0) and (point.x() < pSelf.widthf) and (point.y() < pSelf.heightf)) {
-            var x = @floatToInt(usize, point.x());
-            var y = @floatToInt(usize, point.y());
-            //if (DBG) warn("drawPoint: putting x={} y={} c={x}\n", x, y, color);
-            pSelf.putPixel(x, y, color);
-        }
+    pub fn drawPointV2f32(pSelf: *Self, point: geo.V2f32, color: u32) void {
+        pSelf.drawPointXy(@floatToInt(isize, point.x()), @floatToInt(isize, point.y()), color);
     }
 
     /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
@@ -180,7 +174,7 @@ pub const Window = struct {
         var diff_half = diff.scale(0.5);
         var mid_point = point0.add(&diff_half);
         //if (DBG) warn("drawLe: diff_half={} mid_point={}\n", diff_half, mid_point);
-        pSelf.drawPoint(mid_point, color);
+        pSelf.drawPointV2f32(mid_point, color);
 
         pSelf.drawLine(point0, mid_point, color);
         pSelf.drawLine(mid_point, point1, color);
@@ -241,16 +235,16 @@ pub const Window = struct {
                 const vc = mesh.vertices[face.c];
                 if (DBG3) warn("\nva={} vb={} vc={}\n", va, vb, vc);
 
-                const pa = pSelf.project(va, &transform_matrix);
-                const pb = pSelf.project(vb, &transform_matrix);
-                const pc = pSelf.project(vc, &transform_matrix);
+                const pa = pSelf.projectRetV2f32(va, &transform_matrix);
+                const pb = pSelf.projectRetV2f32(vb, &transform_matrix);
+                const pc = pSelf.projectRetV2f32(vc, &transform_matrix);
                 if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
                 const color = 0xffff00ff;
 
                 if (DBG_RenderPoints) {
-                    pSelf.drawPoint(pa, color);
-                    pSelf.drawPoint(pb, color);
-                    pSelf.drawPoint(pc, color);
+                    pSelf.drawPointV2f32(pa, color);
+                    pSelf.drawPointV2f32(pb, color);
+                    pSelf.drawPointV2f32(pc, color);
                 } else {
                     pSelf.drawBline(pa, pb, color);
                     pSelf.drawBline(pb, pc, color);
@@ -283,7 +277,7 @@ test "window" {
     assert(window.getPixel(0, 0) == 0x01020304);
 }
 
-test "window.project" {
+test "window.projectRetV2f32" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -293,32 +287,32 @@ test "window.project" {
     defer window.deinit();
 
     var v1 = geo.V3f32.init(0, 0, 0);
-    var r = window.project(v1, &geo.m44f32_unit);
+    var r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf / 2.0);
     assert(r.y() == window.heightf / 2.0);
 
     v1 = geo.V3f32.init(-1.0, 1.0, 0);
-    r = window.project(v1, &geo.m44f32_unit);
+    r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == 0);
     assert(r.y() == 0);
 
     v1 = geo.V3f32.init(1.0, -1.0, 0);
-    r = window.project(v1, &geo.m44f32_unit);
+    r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf);
     assert(r.y() == window.heightf);
 
     v1 = geo.V3f32.init(-1.0, -1.0, 0);
-    r = window.project(v1, &geo.m44f32_unit);
+    r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == 0);
     assert(r.y() == window.heightf);
 
     v1 = geo.V3f32.init(1.0, 1.0, 0);
-    r = window.project(v1, &geo.m44f32_unit);
+    r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf);
     assert(r.y() == 0);
 }
 
-test "window.drawPoint" {
+test "window.drawPointV2f32" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -328,11 +322,11 @@ test "window.drawPoint" {
     defer window.deinit();
 
     var p1 = geo.V2f32.init(0, 0);
-    window.drawPoint(p1, 0x80808080);
+    window.drawPointV2f32(p1, 0x80808080);
     assert(window.getPixel(0, 0) == 0x80808080);
 
     p1 = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-    window.drawPoint(p1, 0x80808080);
+    window.drawPointV2f32(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
 }
 
@@ -412,7 +406,7 @@ test "window.render.cube" {
         window.render(&camera, &meshes);
 
         var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-        window.drawPoint(center, 0xffffffff);
+        window.drawPointV2f32(center, 0xffffffff);
 
         window.present();
 
@@ -491,13 +485,13 @@ test "window.world.to.screen" {
             if (DBG) warn("projected_vert = {}\n", projected_vert);
             assert(projected_vert.approxEql(&expected_projected_vertexs[i], 6));
 
-            var point = window.project(projected_vert, &geo.m44f32_unit);
-            window.drawPoint(point, 0xffff00ff);
+            var point = window.projectRetV2f32(projected_vert, &geo.m44f32_unit);
+            window.drawPointV2f32(point, 0xffff00ff);
             assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == 0xffff00ff);
         }
 
         var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-        window.drawPoint(center, 0xffffffff);
+        window.drawPointV2f32(center, 0xffffffff);
 
         window.present();
 
@@ -655,7 +649,7 @@ fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
         pWindow.render(&camera, meshes);
 
         var center = geo.V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
-        pWindow.drawPoint(center, 0xffffffff);
+        pWindow.drawPointV2f32(center, 0xffffffff);
 
         pWindow.present();
 
