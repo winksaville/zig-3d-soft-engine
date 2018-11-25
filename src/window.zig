@@ -20,7 +20,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -45,6 +45,7 @@ pub const Window = struct {
     name: []const u8,
     bg_color: u32,
     pixels: []u32,
+    zbuffer: []f32,
     sdl_window: *gl.SDL_Window,
     sdl_renderer: *gl.SDL_Renderer,
     sdl_texture: *gl.SDL_Texture,
@@ -61,6 +62,7 @@ pub const Window = struct {
             .heightf = @intToFloat(f32, height),
             .name = name,
             .pixels = try pAllocator.alloc(u32, width * height),
+            .zbuffer = try pAllocator.alloc(f32, width * height),
             .sdl_window = undefined,
             .sdl_renderer = undefined,
             .sdl_texture = undefined,
@@ -128,11 +130,21 @@ pub const Window = struct {
         for (pSelf.pixels) |*pixel| {
             pixel.* = pSelf.bg_color;
         }
+        for (pSelf.zbuffer) |*elem| {
+            elem.* = math.f32_max; //math.maxValue(@typeOf(elem.*));
+        }
     }
 
-    pub fn putPixel(pSelf: *Self, x: usize, y: usize, color: u32) void {
-        if (DBG3) warn("putPixel: x={} y={} c={x}\n", x, y, color);
-        pSelf.pixels[(y * pSelf.width) + x] = color;
+    pub fn putPixel(pSelf: *Self, x: usize, y: usize, z: f32, color: u32) void {
+        if (DBG3) warn("putPixel: x={} y={} z={.3} c={x}\n", x, y, color);
+        var index = (y * pSelf.width) + x;
+
+        // If z is behind or equal to (>=) a previouly written pixel just return.
+        // NOTE: First value written, if they are equal, will be visible. Is this what we want?
+        if (z >= pSelf.zbuffer[index]) return;
+        pSelf.zbuffer[index] = z;
+
+        pSelf.pixels[index] = color;
     }
 
     pub fn getPixel(pSelf: *Self, x: usize, y: usize) u32 {
@@ -166,7 +178,7 @@ pub const Window = struct {
             var uy = @bitCast(usize, y);
             if ((ux < pSelf.width) and (uy < pSelf.height)) {
                 //if (DBG) warn("drawPointXy: putting x={} y={} c={x}\n", ux, uy, color);
-                pSelf.putPixel(ux, uy, color);
+                pSelf.putPixel(ux, uy, -math.f32_max, color);
             }
         }
     }
@@ -179,7 +191,7 @@ pub const Window = struct {
             var uy = @bitCast(usize, y);
             if ((ux < pSelf.width) and (uy < pSelf.height)) {
                 //if (DBG) warn("drawPointXy: putting x={} y={} c={x}\n", ux, uy, color);
-                pSelf.putPixel(ux, uy, color);
+                pSelf.putPixel(ux, uy, z, color);
             }
         }
     }
@@ -269,10 +281,17 @@ pub const Window = struct {
         var sx: isize = @floatToInt(isize, interpolate(pa.x(), pb.x(), gradient1));
         var ex: isize = @floatToInt(isize, interpolate(pc.x(), pd.x(), gradient2));
 
+        // Define the start and end point for z
+        var sz: f32 = interpolate(pa.z(), pb.z(), gradient1);
+        var ez: f32 = interpolate(pc.z(), pd.z(), gradient2);
+
         // Draw a horzitional line between start and end x
         var x: isize = sx;
         while (x < ex) : (x += 1) {
-            pSelf.drawPointXy(x, y, color);
+            var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex -sx));
+            var z = interpolate(sz, ez, gradient);
+
+            pSelf.drawPointXyz(x, y, z, color);
         }
     }
 
@@ -427,7 +446,7 @@ test "window" {
     assert(window.heightci == 480);
     assert(window.heightf == f32(480));
     assert(mem.eql(u8, window.name, "testWindow"));
-    window.putPixel(0, 0, 0x01020304);
+    window.putPixel(0, 0, 0, 0x01020304);
     assert(window.getPixel(0, 0) == 0x01020304);
 }
 
@@ -713,7 +732,7 @@ test "window.keyctrl.triangle" {
         defer arena_allocator.deinit();
         var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 512, 512, "testWindow");
+        var window = try Window.init(pAllocator, 800, 600, "testWindow");
         defer window.deinit();
 
         // Black background color
@@ -741,7 +760,7 @@ test "window.keyctrl.suzanne" {
         defer arena_allocator.deinit();
         var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 512, 512, "testWindow");
+        var window = try Window.init(pAllocator, 800, 600, "testWindow");
         defer window.deinit();
 
         // Black background color
@@ -849,14 +868,14 @@ fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
         // Update the display
         pWindow.clear();
 
+        var center = geo.V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
+        pWindow.drawPointV2f32(center, 0xffffffff);
+
         if (DBG or DBG1 or DBG2) warn("\n");
 
         if (DBG1) warn("camera={}\n", &camera.position);
         if (DBG1) warn("rotation={}\n", meshes[0].rotation);
         pWindow.render(&camera, meshes);
-
-        var center = geo.V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
-        pWindow.drawPointV2f32(center, 0xffffffff);
 
         pWindow.present();
 
