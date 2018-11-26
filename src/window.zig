@@ -33,6 +33,14 @@ const RenderMode = enum {
 };
 const DBG_RenderMode = RenderMode.Triangles;
 
+const ScanLineData = struct {
+    pub y: isize,
+    pub ndotla: f32,
+    pub ndotlb: f32,
+    pub ndotlc: f32,
+    pub ndotld: f32,
+};
+
 pub const Window = struct {
     const Self = @This();
 
@@ -279,10 +287,10 @@ pub const Window = struct {
     /// Draw a horzitontal scan line at y between line a lined defined by
     /// pa/bp to another defined line pc/pb. It is assumed the have
     /// already been sorted.
-    pub fn processScanLine(pSelf: *Self, y: isize, pa: geo.V3f32, pb: geo.V3f32, pc: geo.V3f32, pd: geo.V3f32, color: u32) void {
+    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, pa: geo.V3f32, pb: geo.V3f32, pc: geo.V3f32, pd: geo.V3f32, color: u32) void {
         // Compute the gradiants and if the line are just points then gradient is 1
-        const gradient1: f32 = if (pa.y() == pb.y()) 1 else (@intToFloat(f32, y) - pa.y()) / (pb.y() - pa.y());
-        const gradient2: f32 = if (pc.y() == pd.y()) 1 else (@intToFloat(f32, y) - pc.y()) / (pd.y() - pc.y());
+        const gradient1: f32 = if (pa.y() == pb.y()) 1 else (@intToFloat(f32, scanLineData.y) - pa.y()) / (pb.y() - pa.y());
+        const gradient2: f32 = if (pc.y() == pd.y()) 1 else (@intToFloat(f32, scanLineData.y) - pc.y()) / (pd.y() - pc.y());
 
         // Define the start and end point for x
         var sx: isize = @floatToInt(isize, interpolate(pa.x(), pb.x(), gradient1));
@@ -298,7 +306,7 @@ pub const Window = struct {
             var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex -sx));
             var z = interpolate(sz, ez, gradient);
 
-            pSelf.drawPointXyz(x, y, z, color);
+            pSelf.drawPointXyz(x, scanLineData.y, z, color);
         }
     }
 
@@ -326,6 +334,8 @@ pub const Window = struct {
         var slope_t_m: f32 = if ((m.y() - t.y()) > 0) (m.x() - t.x()) / (m.y() - t.y()) else 0;
         var slope_t_b: f32 = if ((b.y() - t.y()) > 0) (b.x() - t.x()) / (b.y() - t.y()) else 0;
 
+        var scanLineData: ScanLineData = undefined;
+
         // Two cases, 1) triangles with mid on the right
         if (slope_t_m > slope_t_b) {
             // Triangles with mid on the right
@@ -338,12 +348,12 @@ pub const Window = struct {
             // | /
             // |/
             // b
-            var y: isize = @floatToInt(isize, math.trunc(t.y()));
-            while (y <= @floatToInt(isize, math.trunc(b.y()))) : (y += 1) {
-                if (y < @floatToInt(isize, math.trunc(m.y()))) {
-                    pSelf.processScanLine(y, t, b, t, m, color);
+            scanLineData.y = @floatToInt(isize, math.trunc(t.y()));
+            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.y()))) : (scanLineData.y += 1) {
+                if (scanLineData.y < @floatToInt(isize, math.trunc(m.y()))) {
+                    pSelf.processScanLine(scanLineData, t, b, t, m, color);
                 } else {
-                    pSelf.processScanLine(y, t, b, m, b, color);
+                    pSelf.processScanLine(scanLineData, t, b, m, b, color);
                 }
             }
         } else {
@@ -357,12 +367,12 @@ pub const Window = struct {
             //   \ |
             //    \|
             //     b
-            var y: isize = @floatToInt(isize, math.trunc(t.y()));
-            while (y <= @floatToInt(isize, math.trunc(b.y()))) : (y += 1) {
-                if (y < @floatToInt(isize, math.trunc(m.y()))) {
-                    pSelf.processScanLine(y, t, m, t, b, color);
+            scanLineData.y = @floatToInt(isize, math.trunc(t.y()));
+            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.y()))) : (scanLineData.y += 1) {
+                if (scanLineData.y < @floatToInt(isize, math.trunc(m.y()))) {
+                    pSelf.processScanLine(scanLineData, t, m, t, b, color);
                 } else {
-                    pSelf.processScanLine(y, m, b, t, b, color);
+                    pSelf.processScanLine(scanLineData, m, b, t, b, color);
                 }
             }
         }
