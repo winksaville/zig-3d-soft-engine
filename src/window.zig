@@ -17,6 +17,7 @@ const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
 
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
+const Vertex = @import("mesh.zig").Vertex;
 const Face = @import("mesh.zig").Face;
 const ie = @import("input_events.zig");
 
@@ -243,14 +244,20 @@ pub const Window = struct {
 
     /// Project takes a 3D coord and converts it to a 2D point
     /// using the transform matrix.
-    pub fn projectRetV3f32(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V3f32 {
-        if (DBG1) warn("projectRetV3f32:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
-        var point = coord.transform(transMat);
+    pub fn projectRetVertex(pSelf: *Self, vertex: Vertex, transMat: *const M44f32, worldMat: *const M44f32) Vertex {
+        if (DBG1) warn("projectRetVertex:    original coord={} widthf={.3} heightf={.3}\n", &vertex.coord, pSelf.widthf, pSelf.heightf);
+        var point = vertex.coord.transform(transMat);
+        var point_world = vertex.coord.transform(worldMat);
+        var normal_world = vertex.normal_world_coord.transform(worldMat);
 
         var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
         var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
 
-        return geo.V3f32.init(x, y, point.z());
+        return Vertex {
+            .coord = V3f32.init(x, y, point.z()),
+            .world_coord = point_world,
+            .normal_world_coord = normal_world,
+        };
     }
 
     /// Draw a V3f32 point in screen coordinates clipping it if its outside the screen
@@ -386,15 +393,15 @@ pub const Window = struct {
                 const va = mesh.vertices[face.a];
                 const vb = mesh.vertices[face.b];
                 const vc = mesh.vertices[face.c];
-                if (DBG3) warn("\nva={} vb={} vc={}\n", va, vb, vc);
+                if (DBG3) warn("\nva={} vb={} vc={}\n", va.coord, vb.coord, vc.coord);
 
                 var color: u32 = 0xffff00ff;
 
                 switch (DBG_RenderMode) {
                     RenderMode.Points => {
-                        const pa = pSelf.projectRetV2f32(va, &transform_matrix);
-                        const pb = pSelf.projectRetV2f32(vb, &transform_matrix);
-                        const pc = pSelf.projectRetV2f32(vc, &transform_matrix);
+                        const pa = pSelf.projectRetV2f32(va.coord, &transform_matrix);
+                        const pb = pSelf.projectRetV2f32(vb.coord, &transform_matrix);
+                        const pc = pSelf.projectRetV2f32(vc.coord, &transform_matrix);
                         if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
 
                         pSelf.drawPointV2f32(pa, color);
@@ -402,9 +409,9 @@ pub const Window = struct {
                         pSelf.drawPointV2f32(pc, color);
                     },
                     RenderMode.Lines => {
-                        const pa = pSelf.projectRetV2f32(va, &transform_matrix);
-                        const pb = pSelf.projectRetV2f32(vb, &transform_matrix);
-                        const pc = pSelf.projectRetV2f32(vc, &transform_matrix);
+                        const pa = pSelf.projectRetV2f32(va.coord, &transform_matrix);
+                        const pb = pSelf.projectRetV2f32(vb.coord, &transform_matrix);
+                        const pc = pSelf.projectRetV2f32(vc.coord, &transform_matrix);
                         if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
 
                         pSelf.drawBline(pa, pb, color);
@@ -412,15 +419,15 @@ pub const Window = struct {
                         pSelf.drawBline(pc, pa, color);
                     },
                     RenderMode.Triangles => {
-                        const pa = pSelf.projectRetV3f32(va, &transform_matrix);
-                        const pb = pSelf.projectRetV3f32(vb, &transform_matrix);
-                        const pc = pSelf.projectRetV3f32(vc, &transform_matrix);
+                        const pa = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
+                        const pb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
+                        const pc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
                         if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
 
                         var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
                         var colorU32: u32 = @floatToInt(u32, math.round(colorF32 * 256.0)) & 0xff;
                         color = (colorU32 << 24) | (colorU32 << 16) | (colorU32 << 8) | colorU32;
-                        pSelf.drawTriangle(pa, pb, pc, color);
+                        pSelf.drawTriangle(pa.coord, pb.coord, pc.coord, color);
                     },
                 }
             }
@@ -503,7 +510,7 @@ test "window.drawPointV2f32" {
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
 }
 
-test "window.projectRetV3f32" {
+test "window.projectRetVertex" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -512,30 +519,30 @@ test "window.projectRetV3f32" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = geo.V3f32.init(0, 0, 0);
-    var r = window.projectRetV3f32(v1, &geo.m44f32_unit);
-    assert(r.x() == window.widthf / 2.0);
-    assert(r.y() == window.heightf / 2.0);
+    var v1 = Vertex { .coord = geo.V3f32.init(0, 0, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    var r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
+    assert(r.coord.x() == window.widthf / 2.0);
+    assert(r.coord.y() == window.heightf / 2.0);
 
-    v1 = geo.V3f32.init(-0.5, 0.5, 0);
-    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
-    assert(r.x() == 0);
-    assert(r.y() == 0);
+    v1 = Vertex { .coord = geo.V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
+    assert(r.coord.x() == 0);
+    assert(r.coord.y() == 0);
 
-    v1 = geo.V3f32.init(0.5, -0.5, 0);
-    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
-    assert(r.x() == window.widthf);
-    assert(r.y() == window.heightf);
+    v1 = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
+    assert(r.coord.x() == window.widthf);
+    assert(r.coord.y() == window.heightf);
 
-    v1 = geo.V3f32.init(-0.5, -0.5, 0);
-    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
-    assert(r.x() == 0);
-    assert(r.y() == window.heightf);
+    v1 = Vertex { .coord = geo.V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
+    assert(r.coord.x() == 0);
+    assert(r.coord.y() == window.heightf);
 
-    v1 = geo.V3f32.init(0.5, 0.5, 0);
-    r = window.projectRetV3f32(v1, &geo.m44f32_unit);
-    assert(r.x() == window.widthf);
-    assert(r.y() == 0);
+    v1 = Vertex { .coord = geo.V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
+    assert(r.coord.x() == window.widthf);
+    assert(r.coord.y() == 0);
 }
 
 //test "window.drawPointV3f32" {
@@ -588,15 +595,15 @@ test "window.render.cube" {
     mesh = try Mesh.init(pAllocator, "mesh1", 8, 12);
 
     // Unit cube about 0,0,0
-    mesh.vertices[0] = geo.V3f32.init(-1, 1, 1);
-    mesh.vertices[1] = geo.V3f32.init(1, 1, 1);
-    mesh.vertices[2] = geo.V3f32.init(-1, -1, 1);
-    mesh.vertices[3] = geo.V3f32.init(1, -1, 1);
+    mesh.vertices[0] = Vertex { .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[3] = Vertex { .coord = geo.V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
 
-    mesh.vertices[4] = geo.V3f32.init(-1, 1, -1);
-    mesh.vertices[5] = geo.V3f32.init(1, 1, -1);
-    mesh.vertices[6] = geo.V3f32.init(1, -1, -1);
-    mesh.vertices[7] = geo.V3f32.init(-1, -1, -1);
+    mesh.vertices[4] = Vertex { .coord = geo.V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[5] = Vertex { .coord = geo.V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[6] = Vertex { .coord = geo.V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[7] = Vertex { .coord = geo.V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
 
     // 12 faces
     mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
@@ -742,9 +749,9 @@ test "window.keyctrl.triangle" {
 
         // Triangle
         mesh = try Mesh.init(pAllocator, "mesh1", 3, 1);
-        mesh.vertices[0] = geo.V3f32.init(0, 1, 0);
-        mesh.vertices[1] = geo.V3f32.init(0.5, -0.5, 0);
-        mesh.vertices[2] = geo.V3f32.init(-1, -1, 0);
+        mesh.vertices[0] = Vertex { .coord = geo.V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
         mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
 
         var meshes = []Mesh{mesh};

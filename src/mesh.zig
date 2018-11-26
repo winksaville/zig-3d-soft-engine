@@ -19,13 +19,19 @@ pub const Face = struct {
     c: usize,
 };
 
+pub const Vertex = struct {
+    pub coord: geo.V3f32,
+    pub world_coord: geo.V3f32,
+    pub normal_world_coord: geo.V3f32,
+};
+
 pub const Mesh = struct {
     const Self = @This();
 
     pub name: []const u8,
     pub position: geo.V3f32,
     pub rotation: geo.V3f32,
-    pub vertices: []geo.V3f32,
+    pub vertices: []Vertex,
     pub faces: []Face,
 
     pub fn init(pAllocator: *Allocator, name: []const u8, vertices_count: usize, faces_count: usize) !Self {
@@ -33,7 +39,7 @@ pub const Mesh = struct {
             .name = name,
             .position = geo.V3f32.init(0.0, 0.0, 0.0),
             .rotation = geo.V3f32.init(0.0, 0.0, 0.0),
-            .vertices = try pAllocator.alloc(geo.V3f32, vertices_count),
+            .vertices = try pAllocator.alloc(Vertex, vertices_count),
             .faces = try pAllocator.alloc(Face, faces_count),
         };
     }
@@ -64,7 +70,11 @@ pub const Mesh = struct {
             var x = try pos_iter.next().?.asFloat(f32);
             var y = try pos_iter.next().?.asFloat(f32);
             var z = try pos_iter.next().?.asFloat(f32);
-            mesh.vertices[i] = geo.V3f32.init(x, y, z);
+            mesh.vertices[i] = Vertex {
+                .coord = geo.V3f32.init(x, y, z),
+                .world_coord = geo.V3f32.init(0, 0, 0),
+                .normal_world_coord = geo.V3f32.init(0, 0, 0),
+            };
         }
         i = 0;
         var indicies_iter = indices.iterator();
@@ -97,39 +107,71 @@ test "mesh" {
     assert(mesh.rotation.data[2] == 0.0);
 
     // Unit cube about 0,0,0
-    mesh.vertices[0] = geo.V3f32.init(-1, 1, 1);
-    assert(mesh.vertices[0].x() == -1);
-    assert(mesh.vertices[0].y() == 1);
-    assert(mesh.vertices[0].z() == 1);
-    mesh.vertices[1] = geo.V3f32.init(1, 1, 1);
-    assert(mesh.vertices[1].x() == 1);
-    assert(mesh.vertices[1].y() == 1);
-    assert(mesh.vertices[1].z() == 1);
-    mesh.vertices[2] = geo.V3f32.init(-1, -1, 1);
-    assert(mesh.vertices[2].x() == -1);
-    assert(mesh.vertices[2].y() == -1);
-    assert(mesh.vertices[2].z() == 1);
-    mesh.vertices[3] = geo.V3f32.init(1, -1, 1);
-    assert(mesh.vertices[3].x() == 1);
-    assert(mesh.vertices[3].y() == -1);
-    assert(mesh.vertices[3].z() == 1);
+    mesh.vertices[0] = Vertex {
+        .coord = geo.V3f32.init(-1, 1, 1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[0].coord.x() == -1);
+    assert(mesh.vertices[0].coord.y() == 1);
+    assert(mesh.vertices[0].coord.z() == 1);
+    mesh.vertices[1] = Vertex {
+        .coord = geo.V3f32.init(1, 1, 1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[1].coord.x() == 1);
+    assert(mesh.vertices[1].coord.y() == 1);
+    assert(mesh.vertices[1].coord.z() == 1);
+    mesh.vertices[2] = Vertex {
+        .coord = geo.V3f32.init(-1, -1, 1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[2].coord.x() == -1);
+    assert(mesh.vertices[2].coord.y() == -1);
+    assert(mesh.vertices[2].coord.z() == 1);
+    mesh.vertices[3] = Vertex {
+        .coord = geo.V3f32.init(1, -1, 1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[3].coord.x() == 1);
+    assert(mesh.vertices[3].coord.y() == -1);
+    assert(mesh.vertices[3].coord.z() == 1);
 
-    mesh.vertices[4] = geo.V3f32.init(-1, 1, -1);
-    assert(mesh.vertices[4].x() == -1);
-    assert(mesh.vertices[4].y() == 1);
-    assert(mesh.vertices[4].z() == -1);
-    mesh.vertices[5] = geo.V3f32.init(1, 1, -1);
-    assert(mesh.vertices[5].x() == 1);
-    assert(mesh.vertices[5].y() == 1);
-    assert(mesh.vertices[5].z() == -1);
-    mesh.vertices[6] = geo.V3f32.init(1, -1, -1);
-    assert(mesh.vertices[6].x() == 1);
-    assert(mesh.vertices[6].y() == -1);
-    assert(mesh.vertices[6].z() == -1);
-    mesh.vertices[7] = geo.V3f32.init(-1, -1, -1);
-    assert(mesh.vertices[7].x() == -1);
-    assert(mesh.vertices[7].y() == -1);
-    assert(mesh.vertices[7].z() == -1);
+    mesh.vertices[4] = Vertex {
+        .coord = geo.V3f32.init(-1, 1, -1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[4].coord.x() == -1);
+    assert(mesh.vertices[4].coord.y() == 1);
+    assert(mesh.vertices[4].coord.z() == -1);
+    mesh.vertices[5] = Vertex {
+        .coord = geo.V3f32.init(1, 1, -1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[5].coord.x() == 1);
+    assert(mesh.vertices[5].coord.y() == 1);
+    assert(mesh.vertices[5].coord.z() == -1);
+    mesh.vertices[6] = Vertex {
+        .coord = geo.V3f32.init(1, -1, -1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[6].coord.x() == 1);
+    assert(mesh.vertices[6].coord.y() == -1);
+    assert(mesh.vertices[6].coord.z() == -1);
+    mesh.vertices[7] = Vertex {
+        .coord = geo.V3f32.init(-1, -1, -1),
+        .world_coord = undefined,
+        .normal_world_coord = undefined,
+    };
+    assert(mesh.vertices[7].coord.x() == -1);
+    assert(mesh.vertices[7].coord.y() == -1);
+    assert(mesh.vertices[7].coord.z() == -1);
 
     // The cube has 6 side each composed
     // of 2 trianglar faces on the side

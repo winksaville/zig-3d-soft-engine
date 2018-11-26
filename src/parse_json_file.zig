@@ -10,11 +10,12 @@ const json = @import("../modules/zig-json/json.zig");
 
 const meshns = @import("mesh.zig");
 const Mesh = meshns.Mesh;
+const Vertex = meshns.Vertex;
 const Face = meshns.Face;
 
 const geo = @import("../modules/zig-geometry/index.zig");
 
-const DBG = true;
+const DBG = false;
 
 pub fn parseJsonFile(pAllocator: *Allocator, file_name: []const u8) !json.ValueTree {
     var contents = try readFile(pAllocator, file_name);
@@ -97,11 +98,20 @@ test "parse_json_file.parse.suzanne" {
     var mesh = try Mesh.init(pAllocator, "suzanne", vertices_count, faces_count);
     var i: usize = 0;
     var pos_iter = positions.iterator();
+    var nrml_iter = normals.iterator();
     while (i < vertices_count) : (i += 1) {
         var x = try pos_iter.next().?.asFloat(f32);
         var y = try pos_iter.next().?.asFloat(f32);
         var z = try pos_iter.next().?.asFloat(f32);
-        mesh.vertices[i] = geo.V3f32.init(x, y, z);
+
+        var nx = try nrml_iter.next().?.asFloat(f32);
+        var ny = try nrml_iter.next().?.asFloat(f32);
+        var nz = try nrml_iter.next().?.asFloat(f32);
+        mesh.vertices[i] = Vertex {
+            .coord = geo.V3f32.init(x, y, z),
+            .world_coord = geo.V3f32.init(0, 0, 0),
+            .normal_world = geo.V3f32.init(nx, ny, nz),
+        };
     }
     i = 0;
     var indicies_iter = indices.iterator();
