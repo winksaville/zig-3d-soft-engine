@@ -766,7 +766,7 @@ test "window.keyctrl.suzanne" {
         // Black background color
         window.setBgColor(0);
 
-        var file_name = "3d-objects/suzanne.babylon";
+        var file_name = "res/suzanne.babylon";
         var tree = try parseJsonFile(pAllocator, file_name);
         defer tree.deinit();
 
