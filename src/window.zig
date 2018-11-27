@@ -310,9 +310,15 @@ pub const Window = struct {
     }
 
     /// Draw a horzitontal scan line at y between line a lined defined by
-    /// pa/bp to another defined line pc/pb. It is assumed the have
-    /// already been sorted.
-    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, pa: geo.V3f32, pb: geo.V3f32, pc: geo.V3f32, pd: geo.V3f32, color: u32) void {
+    /// va:vb to another defined line vc:vd. It is assumed they have
+    /// already been sorted and we're drawing horizontal lines with
+    /// line va:vb on the left and vc:vd on the right.
+    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, va: Vertex, vb: Vertex, vc: Vertex, vd: Vertex, color: u32) void {
+        var pa = va.coord;
+        var pb = vb.coord;
+        var pc = vc.coord;
+        var pd = vd.coord;
+
         // Compute the gradiants and if the line are just points then gradient is 1
         const gradient1: f32 = if (pa.y() == pb.y()) 1 else (@intToFloat(f32, scanLineData.y) - pa.y()) / (pb.y() - pa.y());
         const gradient2: f32 = if (pc.y() == pd.y()) 1 else (@intToFloat(f32, scanLineData.y) - pc.y()) / (pd.y() - pc.y());
@@ -325,50 +331,52 @@ pub const Window = struct {
         var sz: f32 = interpolate(pa.z(), pb.z(), gradient1);
         var ez: f32 = interpolate(pc.z(), pd.z(), gradient2);
 
+        // Define the start and end point for normal dot light
+        var snl: f32 = interpolate(scanLineData.ndotla, scanLineData.ndotlb, gradient1);
+        var enl: f32 = interpolate(scanLineData.ndotlc, scanLineData.ndotld, gradient2);
+
         // Draw a horzitional line between start and end x
         var x: isize = sx;
         while (x < ex) : (x += 1) {
             var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex -sx));
             var z = interpolate(sz, ez, gradient);
+            var ndotl = interpolate(snl, enl, gradient);
 
-            pSelf.drawPointXyz(x, scanLineData.y, z, colorScale(color, scanLineData.ndotla));
+            pSelf.drawPointXyz(x, scanLineData.y, z, colorScale(color, ndotl));
         }
     }
 
     pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: u32) void {
         // Sort the points finding top, mid, bottom.
-        var t = v1.coord; // Top
-        var m = v2.coord; // Mid
-        var b = v3.coord; // Bottom
+        var t = v1; // Top
+        var m = v2; // Mid
+        var b = v3; // Bottom
 
         // Find top, i.e. the point with the smallest y value
-        if (t.y() > m.y()) {
-            mem.swap(V3f32, &t, &m);
+        if (t.coord.y() > m.coord.y()) {
+            mem.swap(Vertex, &t, &m);
         }
-        if (t.y() > b.y()) {
-            mem.swap(V3f32, &t, &b);
+        if (t.coord.y() > b.coord.y()) {
+            mem.swap(Vertex, &t, &b);
         }
 
         // Now switch mid and bottom if they are out of order
-        if (m.y() > b.y()) {
-            mem.swap(V3f32, &m, &b);
+        if (m.coord.y() > b.coord.y()) {
+            mem.swap(Vertex, &m, &b);
         }
-
-        // Compute the normal for the face
-        var normal_face = v1.normal_world_coord.add(&v2.normal_world_coord).add(&v3.normal_world_coord);
-        normal_face = normal_face.div(&V3f32.init(3, 3, 3));
-        var center_point = v1.world_coord.add(&v2.world_coord).add(&v3.world_coord);
-        center_point = center_point.div(&V3f32.init(3, 3, 3));
 
         var light_pos = V3f32.init(0, 10, 10);
 
+        var t_ndotl = computeNormalDotLight(t.world_coord, t.normal_world_coord, light_pos);
+        var m_ndotl = computeNormalDotLight(m.world_coord, m.normal_world_coord, light_pos);
+        var b_ndotl = computeNormalDotLight(b.world_coord, b.normal_world_coord, light_pos);
+
         var scanLineData: ScanLineData = undefined;
-        scanLineData.ndotla = computeNormalDotLight(center_point, normal_face, light_pos);
 
         // Compute the inverse slopes
         // http://en.wikipedia.org/wiki/Slope
-        var slope_t_m: f32 = if ((m.y() - t.y()) > 0) (m.x() - t.x()) / (m.y() - t.y()) else 0;
-        var slope_t_b: f32 = if ((b.y() - t.y()) > 0) (b.x() - t.x()) / (b.y() - t.y()) else 0;
+        var slope_t_m: f32 = if ((m.coord.y() - t.coord.y()) > 0) (m.coord.x() - t.coord.x()) / (m.coord.y() - t.coord.y()) else 0;
+        var slope_t_b: f32 = if ((b.coord.y() - t.coord.y()) > 0) (b.coord.x() - t.coord.x()) / (b.coord.y() - t.coord.y()) else 0;
 
         // Two cases, 1) triangles with mid on the right
         if (slope_t_m > slope_t_b) {
@@ -382,11 +390,19 @@ pub const Window = struct {
             // | /
             // |/
             // b
-            scanLineData.y = @floatToInt(isize, math.trunc(t.y()));
-            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.y()))) : (scanLineData.y += 1) {
-                if (scanLineData.y < @floatToInt(isize, math.trunc(m.y()))) {
+            scanLineData.y = @floatToInt(isize, math.trunc(t.coord.y()));
+            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.coord.y()))) : (scanLineData.y += 1) {
+                if (scanLineData.y < @floatToInt(isize, math.trunc(m.coord.y()))) {
+                    scanLineData.ndotla = t_ndotl;
+                    scanLineData.ndotlb = b_ndotl;
+                    scanLineData.ndotlc = t_ndotl;
+                    scanLineData.ndotld = m_ndotl;
                     pSelf.processScanLine(scanLineData, t, b, t, m, color);
                 } else {
+                    scanLineData.ndotla = t_ndotl;
+                    scanLineData.ndotlb = b_ndotl;
+                    scanLineData.ndotlc = m_ndotl;
+                    scanLineData.ndotld = b_ndotl;
                     pSelf.processScanLine(scanLineData, t, b, m, b, color);
                 }
             }
@@ -401,11 +417,19 @@ pub const Window = struct {
             //   \ |
             //    \|
             //     b
-            scanLineData.y = @floatToInt(isize, math.trunc(t.y()));
-            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.y()))) : (scanLineData.y += 1) {
-                if (scanLineData.y < @floatToInt(isize, math.trunc(m.y()))) {
+            scanLineData.y = @floatToInt(isize, math.trunc(t.coord.y()));
+            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.coord.y()))) : (scanLineData.y += 1) {
+                if (scanLineData.y < @floatToInt(isize, math.trunc(m.coord.y()))) {
+                    scanLineData.ndotla = t_ndotl;
+                    scanLineData.ndotlb = m_ndotl;
+                    scanLineData.ndotlc = t_ndotl;
+                    scanLineData.ndotld = b_ndotl;
                     pSelf.processScanLine(scanLineData, t, m, t, b, color);
                 } else {
+                    scanLineData.ndotla = m_ndotl;
+                    scanLineData.ndotlb = b_ndotl;
+                    scanLineData.ndotlc = t_ndotl;
+                    scanLineData.ndotld = b_ndotl;
                     pSelf.processScanLine(scanLineData, m, b, t, b, color);
                 }
             }
@@ -790,10 +814,8 @@ test "window.keyctrl.triangle" {
         // Black background color
         window.setBgColor(0);
 
-        var mesh: Mesh = undefined;
-
         // Triangle
-        mesh = try Mesh.init(pAllocator, "mesh1", 3, 1);
+        var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
         mesh.vertices[0] = Vertex { .coord = geo.V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
         mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
         mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
