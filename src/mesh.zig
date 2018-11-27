@@ -66,14 +66,19 @@ pub const Mesh = struct {
 
         var i: usize = 0;
         var pos_iter = positions.iterator();
+        var nrml_iter = normals.iterator();
         while (i < vertices_count) : (i += 1) {
             var x = try pos_iter.next().?.asFloat(f32);
             var y = try pos_iter.next().?.asFloat(f32);
             var z = try pos_iter.next().?.asFloat(f32);
+
+            var nx = try nrml_iter.next().?.asFloat(f32);
+            var ny = try nrml_iter.next().?.asFloat(f32);
+            var nz = try nrml_iter.next().?.asFloat(f32);
             mesh.vertices[i] = Vertex {
                 .coord = geo.V3f32.init(x, y, z),
                 .world_coord = geo.V3f32.init(0, 0, 0),
-                .normal_world_coord = geo.V3f32.init(0, 0, 0),
+                .normal_world_coord = geo.V3f32.init(nx, ny, nz),
             };
         }
         i = 0;
