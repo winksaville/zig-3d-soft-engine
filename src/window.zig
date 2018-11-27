@@ -284,6 +284,31 @@ pub const Window = struct {
         return min + (max - min) * clamp(gradient, 0, 1);
     }
 
+    /// Compute the normal dot light
+    pub fn computeNormalDotLight(vertex: V3f32, normal: V3f32, light_pos: V3f32) f32 {
+        var light_direction = light_pos.sub(&vertex);
+        var nrml = normal.normalize();
+        light_direction = light_direction.normalize();
+
+        var ndotl = nrml.dot(&light_direction);
+        var r = math.max(0, ndotl);
+
+        if (DBG3) warn("computeNormalDotLight: ndotl={} r={}\n", ndotl, r);
+        return r;
+    }
+
+    /// Scale each of the rgb components by other
+    pub fn colorScale(color: u32, other: f32) u32 {
+        var b: u32 = @floatToInt(u32, math.round(@intToFloat(f32, (color >> 0) & 0xff) * other));
+        var g: u32 = @floatToInt(u32, math.round(@intToFloat(f32, (color >> 8) & 0xff) * other));
+        var r: u32 = @floatToInt(u32, math.round(@intToFloat(f32, (color >> 16) & 0xff) * other));
+        var a: u32 = (color >> 24) & 0xff;
+
+        var result = (a << 24) | (r << 16) | (g << 8) | (b << 0);
+        if (DBG3) warn("colorScale: color={x} other={.5} r={x}\n", color, other, result);
+        return result;
+    }
+
     /// Draw a horzitontal scan line at y between line a lined defined by
     /// pa/bp to another defined line pc/pb. It is assumed the have
     /// already been sorted.
@@ -306,16 +331,8 @@ pub const Window = struct {
             var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex -sx));
             var z = interpolate(sz, ez, gradient);
 
-            pSelf.drawPointXyz(x, scanLineData.y, z, color);
+            pSelf.drawPointXyz(x, scanLineData.y, z, colorScale(color, scanLineData.ndotla));
         }
-    }
-
-    pub fn computeNormalDotLight(vertex: V3f32, normal: V3f32, light_pos: V3f32) f32 {
-        var light_direction = light_pos.sub(&vertex);
-        var nrml = normal.normalize();
-        light_direction = light_direction.normalize();
-
-        return math.max(0, nrml.dot(&light_direction));
     }
 
     pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: u32) void {
@@ -454,7 +471,7 @@ pub const Window = struct {
 
                         var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
                         var colorU32: u32 = @floatToInt(u32, math.round(colorF32 * 256.0)) & 0xff;
-                        color = (colorU32 << 24) | (colorU32 << 16) | (colorU32 << 8) | colorU32;
+                        color = (0xFF << 24) | (colorU32 << 16) | (colorU32 << 8) | colorU32;
                         pSelf.drawTriangle(tva, tvb, tvc, color);
                     },
                 }
