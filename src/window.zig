@@ -310,11 +310,19 @@ pub const Window = struct {
         }
     }
 
-    pub fn drawTriangle(pSelf: *Self, p1: V3f32, p2: V3f32, p3: V3f32, color: u32) void {
+    pub fn computeNormalDotLight(vertex: V3f32, normal: V3f32, light_pos: V3f32) f32 {
+        var light_direction = light_pos.sub(&vertex);
+        var nrml = normal.normalize();
+        light_direction = light_direction.normalize();
+
+        return math.max(0, nrml.dot(&light_direction));
+    }
+
+    pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: u32) void {
         // Sort the points finding top, mid, bottom.
-        var t = p1; // Top
-        var m = p2; // Mid
-        var b = p3; // Bottom
+        var t = v1.coord; // Top
+        var m = v2.coord; // Mid
+        var b = v3.coord; // Bottom
 
         // Find top, i.e. the point with the smallest y value
         if (t.y() > m.y()) {
@@ -329,12 +337,21 @@ pub const Window = struct {
             mem.swap(V3f32, &m, &b);
         }
 
+        // Compute the normal for the face
+        var normal_face = v1.normal_world_coord.add(&v2.normal_world_coord).add(&v3.normal_world_coord);
+        normal_face = normal_face.div(&V3f32.init(3, 3, 3));
+        var center_point = v1.world_coord.add(&v2.world_coord).add(&v3.world_coord);
+        center_point = center_point.div(&V3f32.init(3, 3, 3));
+
+        var light_pos = V3f32.init(0, 10, 10);
+
+        var scanLineData: ScanLineData = undefined;
+        scanLineData.ndotla = computeNormalDotLight(center_point, normal_face, light_pos);
+
         // Compute the inverse slopes
         // http://en.wikipedia.org/wiki/Slope
         var slope_t_m: f32 = if ((m.y() - t.y()) > 0) (m.x() - t.x()) / (m.y() - t.y()) else 0;
         var slope_t_b: f32 = if ((b.y() - t.y()) > 0) (b.x() - t.x()) / (b.y() - t.y()) else 0;
-
-        var scanLineData: ScanLineData = undefined;
 
         // Two cases, 1) triangles with mid on the right
         if (slope_t_m > slope_t_b) {
@@ -429,15 +446,16 @@ pub const Window = struct {
                         pSelf.drawBline(pc, pa, color);
                     },
                     RenderMode.Triangles => {
-                        const pa = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
-                        const pb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
-                        const pc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
-                        if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
+                        // Transform the vertex's
+                        const tva = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
+                        const tvb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
+                        const tvc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
+                        if (DBG3) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
 
                         var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
                         var colorU32: u32 = @floatToInt(u32, math.round(colorF32 * 256.0)) & 0xff;
                         color = (colorU32 << 24) | (colorU32 << 16) | (colorU32 << 8) | colorU32;
-                        pSelf.drawTriangle(pa.coord, pb.coord, pc.coord, color);
+                        pSelf.drawTriangle(tva, tvb, tvc, color);
                     },
                 }
             }
