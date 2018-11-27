@@ -5,6 +5,10 @@ const Allocator = std.mem.Allocator;
 const math = std.math;
 
 const geo = @import("../modules/zig-geometry/index.zig");
+const V2f32 = geo.V2f32;
+const V3f32 = geo.V3f32;
+const M44f32 = geo.M44f32;
+
 
 const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
 
@@ -94,6 +98,61 @@ pub const Mesh = struct {
         return mesh;
     }
 };
+
+/// Compute the normal for each vertice. Assume the faces in the mesh
+/// are ordered counter clockwise so the computed normal always points
+/// "out".
+pub fn computeVerticeNormalsDbg(comptime dbg: bool, meshes: []Mesh) void {
+    if (dbg) warn("computeVn:\n");
+    // Loop over each mesh
+    for (meshes) |msh| {
+        // Zero the normal_coord of each vertex
+        for (msh.vertices) |*vertex, i| {
+            vertex.normal_coord = V3f32.initVal(0);
+        }
+
+        // Calculate the face normal and sum the normal into its vertices
+        for (msh.faces) |face| {
+            if (dbg) warn(" v{}:v{}:v{}\n", face.a, face.b, face.c);
+
+            var a: V3f32 = msh.vertices[face.a].coord;
+            var b: V3f32 = msh.vertices[face.b].coord;
+            var c: V3f32 = msh.vertices[face.c].coord;
+            if (dbg) warn("    {}={}  {}={}  {}={}\n", face.a, a, face.b, b, face.c, c);
+
+            // Use two edges to compute the face normal
+            var ab: V3f32 = b.sub(&a);
+            var bc: V3f32 = c.sub(&b);
+            if (dbg) warn("   ab={} bc={}", ab, bc);
+
+            // Compute the face normal
+            var nm = ab.cross(&bc);
+            if (dbg) warn(" nm={}\n", nm);
+
+            msh.vertices[face.a].normal_coord = msh.vertices[face.a].normal_coord.add(&nm);
+            msh.vertices[face.b].normal_coord = msh.vertices[face.b].normal_coord.add(&nm);
+            msh.vertices[face.c].normal_coord = msh.vertices[face.c].normal_coord.add(&nm);
+            if (dbg) {
+                warn("  s {}={}  {}={}  {}={}\n",
+                    face.a, msh.vertices[face.a].normal_coord, face.b, msh.vertices[face.b].normal_coord, face.c, msh.vertices[face.c].normal_coord);
+            }
+        }
+
+        // Normalize each vertex
+        for (msh.vertices) |*vertex, i| {
+            if (dbg) warn(" nrm v{}.normal_coord={}", i, vertex.normal_coord);
+            vertex.normal_coord = vertex.normal_coord.normalize();
+            if (dbg) warn(" v{}.normal_coord.normalized={}\n", i, vertex.normal_coord);
+        }
+    }
+}
+
+/// Compute the normal for each vertice. Assume the faces in the mesh
+/// are ordered counter clockwise so the computed normal always points
+/// "out".
+pub fn computeVerticeNormals(meshes: []Mesh) void {
+    computeVerticeNormalsDbg(false, meshes);
+}
 
 test "mesh" {
     if (DBG or DBG1) warn("\n");

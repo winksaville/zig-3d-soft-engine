@@ -16,9 +16,13 @@ const M44f32 = geo.M44f32;
 const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
 
 const Camera = @import("camera.zig").Camera;
+
 const Mesh = @import("mesh.zig").Mesh;
 const Vertex = @import("mesh.zig").Vertex;
 const Face = @import("mesh.zig").Face;
+const computeVerticeNormals = @import("mesh.zig").computeVerticeNormals;
+const computeVerticeNormalsDbg = @import("mesh.zig").computeVerticeNormalsDbg;
+
 const ie = @import("input_events.zig");
 
 const DBG = true;
@@ -665,57 +669,60 @@ test "window.render.cube" {
 
     // Unit cube about 0,0,0
     mesh.vertices[0] = Vertex { .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[3] = Vertex { .coord = geo.V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[3] = Vertex { .coord = geo.V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
-    mesh.vertices[4] = Vertex { .coord = geo.V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[5] = Vertex { .coord = geo.V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[4] = Vertex { .coord = V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[5] = Vertex { .coord = geo.V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
     mesh.vertices[6] = Vertex { .coord = geo.V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[7] = Vertex { .coord = geo.V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[7] = Vertex { .coord = geo.V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
     // 12 faces
     mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
-    mesh.faces[1] = Face { .a=1, .b=2, .c=3, };
-    mesh.faces[2] = Face { .a=1, .b=3, .c=6, };
-    mesh.faces[3] = Face { .a=1, .b=5, .c=6, };
-    mesh.faces[4] = Face { .a=0, .b=1, .c=4, };
-    mesh.faces[5] = Face { .a=1, .b=4, .c=5, };
+    mesh.faces[1] = Face { .a=0, .b=2, .c=3, };
+    mesh.faces[2] = Face { .a=0, .b=3, .c=7, };
+    mesh.faces[3] = Face { .a=0, .b=7, .c=4, };
+    mesh.faces[4] = Face { .a=0, .b=1, .c=5, };
+    mesh.faces[5] = Face { .a=0, .b=5, .c=4, };
 
-    mesh.faces[6] = Face { .a=2, .b=3, .c=7, };
-    mesh.faces[7] = Face { .a=3, .b=6, .c=7, };
-    mesh.faces[8] = Face { .a=0, .b=2, .c=7, };
-    mesh.faces[9] = Face { .a=0, .b=4, .c=7, };
-    mesh.faces[10] = Face { .a=4, .b=5, .c=6, };
-    mesh.faces[11] = Face { .a=4, .b=6, .c=7, };
+    mesh.faces[6] = Face { .a=1, .b=2, .c=6, };
+    mesh.faces[7] = Face { .a=1, .b=6, .c=5, };
+    mesh.faces[8] = Face { .a=2, .b=6, .c=7, };
+    mesh.faces[9] = Face { .a=2, .b=7, .c=3, };
+    mesh.faces[10] = Face { .a=5, .b=7, .c=6, };
+    mesh.faces[11] = Face { .a=5, .b=4, .c=7, };
 
     var meshes = []Mesh{mesh};
 
-    var movement = geo.V3f32.init(0.01, 0.01, 0); // Small amount of movement
+    warn("\n");
+    computeVerticeNormalsDbg(true, meshes[0..]);
 
-    var camera_position = geo.V3f32.init(0, 0, 3);
-    var camera_target = geo.V3f32.initVal(0);
-    var camera = Camera.init(camera_position, camera_target);
+    //var movement = geo.V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
-    // Loop until end_time is reached but always loop once :)
-    var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
-    var timer = try time.Timer.start();
-    var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
-    while (true) {
-        window.clear();
+    //var camera_position = geo.V3f32.init(0, 0, 3);
+    //var camera_target = geo.V3f32.initVal(0);
+    //var camera = Camera.init(camera_position, camera_target);
 
-        if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
-        window.render(&camera, &meshes);
+    //// Loop until end_time is reached but always loop once :)
+    //var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
+    //var timer = try time.Timer.start();
+    //var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
+    //while (true) {
+    //    window.clear();
 
-        var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-        window.drawPointV2f32(center, 0xffffffff);
+    //    if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
+    //    window.render(&camera, &meshes);
 
-        window.present();
+    //    var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
+    //    window.drawPointV2f32(center, 0xffffffff);
 
-        meshes[0].rotation = meshes[0].rotation.add(&movement);
+    //    window.present();
 
-        if (timer.read() > end_time) break;
-    }
+    //    meshes[0].rotation = meshes[0].rotation.add(&movement);
+
+    //    if (timer.read() > end_time) break;
+    //}
 }
 
 test "window.world.to.screen" {
@@ -817,11 +824,14 @@ test "window.keyctrl.triangle" {
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
         mesh.vertices[0] = Vertex { .coord = geo.V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+
         mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
 
         var meshes = []Mesh{mesh};
+
+        computeVerticeNormals(meshes[0..]);
 
         keyCtrlMeshes(&window, &meshes);
     }

@@ -110,7 +110,7 @@ test "parse_json_file.parse.suzanne" {
         mesh.vertices[i] = Vertex {
             .coord = geo.V3f32.init(x, y, z),
             .world_coord = geo.V3f32.init(0, 0, 0),
-            .normal_world = geo.V3f32.init(nx, ny, nz),
+            .normal_coord = geo.V3f32.init(nx, ny, nz),
         };
     }
     i = 0;
