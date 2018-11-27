@@ -22,7 +22,7 @@ pub const Face = struct {
 pub const Vertex = struct {
     pub coord: geo.V3f32,
     pub world_coord: geo.V3f32,
-    pub normal_world_coord: geo.V3f32,
+    pub normal_coord: geo.V3f32,
 };
 
 pub const Mesh = struct {
@@ -78,7 +78,7 @@ pub const Mesh = struct {
             mesh.vertices[i] = Vertex {
                 .coord = geo.V3f32.init(x, y, z),
                 .world_coord = geo.V3f32.init(0, 0, 0),
-                .normal_world_coord = geo.V3f32.init(nx, ny, nz),
+                .normal_coord = geo.V3f32.init(nx, ny, nz),
             };
         }
         i = 0;
@@ -115,7 +115,7 @@ test "mesh" {
     mesh.vertices[0] = Vertex {
         .coord = geo.V3f32.init(-1, 1, 1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[0].coord.x() == -1);
     assert(mesh.vertices[0].coord.y() == 1);
@@ -123,7 +123,7 @@ test "mesh" {
     mesh.vertices[1] = Vertex {
         .coord = geo.V3f32.init(1, 1, 1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[1].coord.x() == 1);
     assert(mesh.vertices[1].coord.y() == 1);
@@ -131,7 +131,7 @@ test "mesh" {
     mesh.vertices[2] = Vertex {
         .coord = geo.V3f32.init(-1, -1, 1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[2].coord.x() == -1);
     assert(mesh.vertices[2].coord.y() == -1);
@@ -139,7 +139,7 @@ test "mesh" {
     mesh.vertices[3] = Vertex {
         .coord = geo.V3f32.init(1, -1, 1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[3].coord.x() == 1);
     assert(mesh.vertices[3].coord.y() == -1);
@@ -148,7 +148,7 @@ test "mesh" {
     mesh.vertices[4] = Vertex {
         .coord = geo.V3f32.init(-1, 1, -1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[4].coord.x() == -1);
     assert(mesh.vertices[4].coord.y() == 1);
@@ -156,7 +156,7 @@ test "mesh" {
     mesh.vertices[5] = Vertex {
         .coord = geo.V3f32.init(1, 1, -1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[5].coord.x() == 1);
     assert(mesh.vertices[5].coord.y() == 1);
@@ -164,7 +164,7 @@ test "mesh" {
     mesh.vertices[6] = Vertex {
         .coord = geo.V3f32.init(1, -1, -1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[6].coord.x() == 1);
     assert(mesh.vertices[6].coord.y() == -1);
@@ -172,7 +172,7 @@ test "mesh" {
     mesh.vertices[7] = Vertex {
         .coord = geo.V3f32.init(-1, -1, -1),
         .world_coord = undefined,
-        .normal_world_coord = undefined,
+        .normal_coord = undefined,
     };
     assert(mesh.vertices[7].coord.x() == -1);
     assert(mesh.vertices[7].coord.y() == -1);

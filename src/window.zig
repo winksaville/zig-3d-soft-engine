@@ -256,7 +256,7 @@ pub const Window = struct {
         if (DBG1) warn("projectRetVertex:    original coord={} widthf={.3} heightf={.3}\n", &vertex.coord, pSelf.widthf, pSelf.heightf);
         var point = vertex.coord.transform(transMat);
         var point_world = vertex.coord.transform(worldMat);
-        var normal_world = vertex.normal_world_coord.transform(worldMat);
+        var normal_world = vertex.normal_coord.transform(worldMat);
 
         var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
         var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
@@ -264,7 +264,7 @@ pub const Window = struct {
         return Vertex {
             .coord = V3f32.init(x, y, point.z()),
             .world_coord = point_world,
-            .normal_world_coord = normal_world,
+            .normal_coord = normal_world,
         };
     }
 
@@ -367,9 +367,9 @@ pub const Window = struct {
 
         var light_pos = V3f32.init(0, 10, 10);
 
-        var t_ndotl = computeNormalDotLight(t.world_coord, t.normal_world_coord, light_pos);
-        var m_ndotl = computeNormalDotLight(m.world_coord, m.normal_world_coord, light_pos);
-        var b_ndotl = computeNormalDotLight(b.world_coord, b.normal_world_coord, light_pos);
+        var t_ndotl = computeNormalDotLight(t.world_coord, t.normal_coord, light_pos);
+        var m_ndotl = computeNormalDotLight(m.world_coord, m.normal_coord, light_pos);
+        var b_ndotl = computeNormalDotLight(b.world_coord, b.normal_coord, light_pos);
 
         var scanLineData: ScanLineData = undefined;
 
@@ -588,27 +588,27 @@ test "window.projectRetVertex" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = Vertex { .coord = geo.V3f32.init(0, 0, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    var v1 = Vertex { .coord = geo.V3f32.init(0, 0, 0), .world_coord = undefined, .normal_coord = undefined, };
     var r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf / 2.0);
     assert(r.coord.y() == window.heightf / 2.0);
 
-    v1 = Vertex { .coord = geo.V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    v1 = Vertex { .coord = geo.V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == 0);
 
-    v1 = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    v1 = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex { .coord = geo.V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    v1 = Vertex { .coord = geo.V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex { .coord = geo.V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_world_coord = undefined, };
+    v1 = Vertex { .coord = geo.V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == 0);
@@ -664,15 +664,15 @@ test "window.render.cube" {
     mesh = try Mesh.init(pAllocator, "mesh1", 8, 12);
 
     // Unit cube about 0,0,0
-    mesh.vertices[0] = Vertex { .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[3] = Vertex { .coord = geo.V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[0] = Vertex { .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[3] = Vertex { .coord = geo.V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
-    mesh.vertices[4] = Vertex { .coord = geo.V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[5] = Vertex { .coord = geo.V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[6] = Vertex { .coord = geo.V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[7] = Vertex { .coord = geo.V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[4] = Vertex { .coord = geo.V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[5] = Vertex { .coord = geo.V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[6] = Vertex { .coord = geo.V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[7] = Vertex { .coord = geo.V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
     // 12 faces
     mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
@@ -816,9 +816,9 @@ test "window.keyctrl.triangle" {
 
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
-        mesh.vertices[0] = Vertex { .coord = geo.V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_world_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[0] = Vertex { .coord = geo.V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
         mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
 
         var meshes = []Mesh{mesh};
