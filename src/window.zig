@@ -618,24 +618,6 @@ test "window.projectRetVertex" {
     assert(r.coord.y() == 0);
 }
 
-//test "window.drawPointV3f32" {
-//    var direct_allocator = std.heap.DirectAllocator.init();
-//    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-//    defer arena_allocator.deinit();
-//    var pAllocator = &arena_allocator.allocator;
-//
-//    var window = try Window.init(pAllocator, 640, 480, "testWindow");
-//    defer window.deinit();
-//
-//    var p1 = geo.V3f32.init(0, 0, 0);
-//    window.drawPointV3f32(p1, 0x80808080);
-//    assert(window.getPixel(0, 0) == 0x80808080);
-//
-//    p1 = geo.V3f32.init(window.widthf / 2, window.heightf / 2, 0);
-//    window.drawPointV3f32(p1, 0x80808080);
-//    assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
-//}
-
 test "window.drawLine" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
