@@ -173,13 +173,13 @@ pub const Window = struct {
 
     /// Project takes a 3D coord and converts it to a 2D point
     /// using the transform matrix.
-    pub fn projectRetV2f32(pSelf: *Self, coord: geo.V3f32, transMat: *const geo.M44f32) geo.V2f32 {
+    pub fn projectRetV2f32(pSelf: *Self, coord: V3f32, transMat: *const M44f32) V2f32 {
         if (DBG1) warn("projectRetV2f32:    original coord={} widthf={.3} heightf={.3}\n", &coord, pSelf.widthf, pSelf.heightf);
         return geo.projectToScreenCoord(pSelf.widthf, pSelf.heightf, coord, transMat);
     }
 
     /// Draw a Vec2 point in screen coordinates clipping it if its outside the screen
-    pub fn drawPointV2f32(pSelf: *Self, point: geo.V2f32, color: u32) void {
+    pub fn drawPointV2f32(pSelf: *Self, point: V2f32, color: u32) void {
         pSelf.drawPointXy(@floatToInt(isize, point.x()), @floatToInt(isize, point.y()), color);
     }
 
@@ -210,7 +210,7 @@ pub const Window = struct {
     }
 
     /// Draw a line point0 and 1 are in screen coordinates
-    pub fn drawLine(pSelf: *Self, point0: geo.V2f32, point1: geo.V2f32, color: u32) void {
+    pub fn drawLine(pSelf: *Self, point0: V2f32, point1: V2f32, color: u32) void {
         var diff = point1.sub(&point0);
         var dist = diff.length();
         //if (DBG) warn("drawLine: diff={} dist={}\n", diff, dist);
@@ -227,7 +227,7 @@ pub const Window = struct {
     }
 
     /// Draw a line point0 and 1 are in screen coordinates using Bresnham algorithm
-    pub fn drawBline(pSelf: *Self, point0: geo.V2f32, point1: geo.V2f32, color: u32) void {
+    pub fn drawBline(pSelf: *Self, point0: V2f32, point1: V2f32, color: u32) void {
         //@setRuntimeSafety(false);
         var x0 = @floatToInt(isize, point0.x());
         var y0 = @floatToInt(isize, point0.y());
@@ -273,7 +273,7 @@ pub const Window = struct {
     }
 
     /// Draw a V3f32 point in screen coordinates clipping it if its outside the screen
-    pub fn drawPointV3f32(pSelf: *Self, point: geo.V3f32, color: u32) void {
+    pub fn drawPointV3f32(pSelf: *Self, point: V3f32, color: u32) void {
         pSelf.drawPointXyz(@floatToInt(isize, math.trunc(point.x())), @floatToInt(isize, math.trunc(point.y())), point.z(), color);
     }
 
@@ -442,7 +442,7 @@ pub const Window = struct {
 
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
-        var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &geo.V3f32.unitY());
+        var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
         if (DBG) warn("\nview_matrix:\n{}", &view_matrix);
 
         var fov: f32 = 90;
@@ -539,27 +539,27 @@ test "window.projectRetV2f32" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = geo.V3f32.init(0, 0, 0);
+    var v1 = V3f32.init(0, 0, 0);
     var r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf / 2.0);
     assert(r.y() == window.heightf / 2.0);
 
-    v1 = geo.V3f32.init(-1.0, 1.0, 0);
+    v1 = V3f32.init(-1.0, 1.0, 0);
     r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == 0);
     assert(r.y() == 0);
 
-    v1 = geo.V3f32.init(1.0, -1.0, 0);
+    v1 = V3f32.init(1.0, -1.0, 0);
     r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf);
     assert(r.y() == window.heightf);
 
-    v1 = geo.V3f32.init(-1.0, -1.0, 0);
+    v1 = V3f32.init(-1.0, -1.0, 0);
     r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == 0);
     assert(r.y() == window.heightf);
 
-    v1 = geo.V3f32.init(1.0, 1.0, 0);
+    v1 = V3f32.init(1.0, 1.0, 0);
     r = window.projectRetV2f32(v1, &geo.m44f32_unit);
     assert(r.x() == window.widthf);
     assert(r.y() == 0);
@@ -574,11 +574,11 @@ test "window.drawPointV2f32" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var p1 = geo.V2f32.init(0, 0);
+    var p1 = V2f32.init(0, 0);
     window.drawPointV2f32(p1, 0x80808080);
     assert(window.getPixel(0, 0) == 0x80808080);
 
-    p1 = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
+    p1 = V2f32.init(window.widthf / 2, window.heightf / 2);
     window.drawPointV2f32(p1, 0x80808080);
     assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
 }
@@ -592,27 +592,27 @@ test "window.projectRetVertex" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = Vertex { .coord = geo.V3f32.init(0, 0, 0), .world_coord = undefined, .normal_coord = undefined, };
+    var v1 = Vertex { .coord = V3f32.init(0, 0, 0), .world_coord = undefined, .normal_coord = undefined, };
     var r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf / 2.0);
     assert(r.coord.y() == window.heightf / 2.0);
 
-    v1 = Vertex { .coord = geo.V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex { .coord = V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == 0);
 
-    v1 = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex { .coord = V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex { .coord = geo.V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex { .coord = V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex { .coord = geo.V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex { .coord = V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == 0);
@@ -627,8 +627,8 @@ test "window.drawLine" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var point1 = geo.V2f32.init(1, 1);
-    var point2 = geo.V2f32.init(4, 4);
+    var point1 = V2f32.init(1, 1);
+    var point2 = V2f32.init(4, 4);
     window.drawLine(point1, point2, 0x80808080);
     assert(window.getPixel(1, 1) == 0x80808080);
     assert(window.getPixel(2, 2) == 0x80808080);
@@ -660,23 +660,23 @@ test "window.world.to.screen" {
     var world_to_camera_matrix = geo.m44f32_unit;
     world_to_camera_matrix.data[3][2] = 2;
 
-    var world_vertexs = []geo.V3f32{
-        geo.V3f32.init(0, 1.0, 0),
-        geo.V3f32.init(0, -1.0, 0),
-        geo.V3f32.init(0, 1.0, 0.2),
-        geo.V3f32.init(0, -1.0, -0.2),
+    var world_vertexs = []V3f32{
+        V3f32.init(0, 1.0, 0),
+        V3f32.init(0, -1.0, 0),
+        V3f32.init(0, 1.0, 0.2),
+        V3f32.init(0, -1.0, -0.2),
     };
-    var expected_camera_vertexs = []geo.V3f32{
-        geo.V3f32.init(0, 1.0, 2),
-        geo.V3f32.init(0, -1.0, 2.0),
-        geo.V3f32.init(0, 1.0, 2.2),
-        geo.V3f32.init(0, -1.0, 1.8),
+    var expected_camera_vertexs = []V3f32{
+        V3f32.init(0, 1.0, 2),
+        V3f32.init(0, -1.0, 2.0),
+        V3f32.init(0, 1.0, 2.2),
+        V3f32.init(0, -1.0, 1.8),
     };
-    var expected_projected_vertexs = []geo.V3f32{
-        geo.V3f32.init(0, 0.5, -1.0151515),
-        geo.V3f32.init(0, -0.5, -1.0151515),
-        geo.V3f32.init(0, 0.4545454, -1.0146923),
-        geo.V3f32.init(0, -0.5555555, -1.0157126),
+    var expected_projected_vertexs = []V3f32{
+        V3f32.init(0, 0.5, -1.0151515),
+        V3f32.init(0, -0.5, -1.0151515),
+        V3f32.init(0, 0.4545454, -1.0146923),
+        V3f32.init(0, -0.5555555, -1.0157126),
     };
     var expected_screen_vertexs = [][2]u32{
         []u32{ 256, 128 },
@@ -709,7 +709,7 @@ test "window.world.to.screen" {
             assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == 0xffff00ff);
         }
 
-        var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
+        var center = V2f32.init(window.widthf / 2, window.heightf / 2);
         window.drawPointV2f32(center, 0xffffffff);
 
         window.present();
@@ -734,14 +734,14 @@ test "window.render.cube" {
 
     // Unit cube about 0,0,0
     mesh.vertices[0] = Vertex { .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[3] = Vertex { .coord = geo.V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[1] = Vertex { .coord = V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[2] = Vertex { .coord = V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[3] = Vertex { .coord = V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
     mesh.vertices[4] = Vertex { .coord = V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[5] = Vertex { .coord = geo.V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[6] = Vertex { .coord = geo.V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[7] = Vertex { .coord = geo.V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[5] = Vertex { .coord = V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[6] = Vertex { .coord = V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[7] = Vertex { .coord = V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
     // 12 faces
     mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
@@ -763,10 +763,10 @@ test "window.render.cube" {
     warn("\n");
     computeVerticeNormalsDbg(true, meshes[0..]);
 
-    var movement = geo.V3f32.init(0.01, 0.01, 0); // Small amount of movement
+    var movement = V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
-    var camera_position = geo.V3f32.init(0, 0, 3);
-    var camera_target = geo.V3f32.initVal(0);
+    var camera_position = V3f32.init(0, 0, 3);
+    var camera_target = V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
 
     // Loop until end_time is reached but always loop once :)
@@ -779,7 +779,7 @@ test "window.render.cube" {
         if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
         window.render(&camera, &meshes);
 
-        var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
+        var center = V2f32.init(window.widthf / 2, window.heightf / 2);
         window.drawPointV2f32(center, 0xffffffff);
 
         window.present();
@@ -805,9 +805,9 @@ test "window.keyctrl.triangle" {
 
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
-        mesh.vertices[0] = Vertex { .coord = geo.V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[1] = Vertex { .coord = geo.V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[2] = Vertex { .coord = geo.V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[0] = Vertex { .coord = V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[1] = Vertex { .coord = V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[2] = Vertex { .coord = V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
 
         mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
 
@@ -853,20 +853,20 @@ const KeyState = struct {
     ei: ie.EventInterface,
 };
 
-fn rotate(mod: u16, pos: geo.V3f32, val: f32) geo.V3f32 {
+fn rotate(mod: u16, pos: V3f32, val: f32) V3f32 {
     var r = geo.rad(val);
     if (DBG) warn("rotate: mod={x} pos={} rad(val)={}\n", mod, pos, r);
     var new_pos = pos;
     if ((mod & gl.KMOD_LCTRL) != 0) {
-        new_pos = new_pos.add(&geo.V3f32.init(r, 0, 0));
+        new_pos = new_pos.add(&V3f32.init(r, 0, 0));
         if (DBG) warn("rotate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
-        new_pos = new_pos.add(&geo.V3f32.init(0, r, 0));
+        new_pos = new_pos.add(&V3f32.init(0, r, 0));
         if (DBG) warn("rotate: add Y\n");
     }
     if ((mod & gl.KMOD_RCTRL) != 0) {
-        new_pos = new_pos.add(&geo.V3f32.init(0, 0, r));
+        new_pos = new_pos.add(&V3f32.init(0, 0, r));
         if (DBG) warn("rotate: add Z\n");
     }
     if (DBG and !pos.approxEql(&new_pos, 4)) {
@@ -875,19 +875,19 @@ fn rotate(mod: u16, pos: geo.V3f32, val: f32) geo.V3f32 {
     return new_pos;
 }
 
-fn translate(mod: u16, pos: geo.V3f32, val: f32) geo.V3f32 {
+fn translate(mod: u16, pos: V3f32, val: f32) V3f32 {
     if (DBG) warn("translate: pos={}\n", pos);
     var new_pos = pos;
     if ((mod & gl.KMOD_LCTRL) != 0) {
-        new_pos = pos.add(&geo.V3f32.init(val, 0, 0));
+        new_pos = pos.add(&V3f32.init(val, 0, 0));
         if (DBG) warn("translate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
-        new_pos = pos.add(&geo.V3f32.init(0, val, 0));
+        new_pos = pos.add(&V3f32.init(0, val, 0));
         if (DBG) warn("translate: add Y\n");
     }
     if ((mod & gl.KMOD_LALT) != 0) {
-        new_pos = pos.add(&geo.V3f32.init(0, 0, val));
+        new_pos = pos.add(&V3f32.init(0, 0, val));
         if (DBG) warn("translate: add Z\n");
     }
     if (DBG and !pos.eql(&new_pos)) {
@@ -914,8 +914,8 @@ fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
 }
 
 fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
-    var camera_position = geo.V3f32.init(0, 0, 3);
-    var camera_target = geo.V3f32.initVal(0);
+    var camera_position = V3f32.init(0, 0, 3);
+    var camera_target = V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
 
     var ks = KeyState{
@@ -934,7 +934,7 @@ fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
         // Update the display
         pWindow.clear();
 
-        var center = geo.V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
+        var center = V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
         pWindow.drawPointV2f32(center, 0xffffffff);
 
         if (DBG or DBG1 or DBG2) warn("\n");
