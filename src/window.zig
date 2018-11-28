@@ -443,7 +443,7 @@ pub const Window = struct {
     /// Render the meshes into the window from the camera's point of view
     pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &geo.V3f32.unitY());
-        if (DBG) warn("view_matrix:\n{}", &view_matrix);
+        if (DBG) warn("\nview_matrix:\n{}", &view_matrix);
 
         var fov: f32 = 90;
         var znear: f32 = 0.01;
@@ -681,48 +681,48 @@ test "window.render.cube" {
     // 12 faces
     mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
     mesh.faces[1] = Face { .a=0, .b=2, .c=3, };
-    mesh.faces[2] = Face { .a=0, .b=3, .c=7, };
-    mesh.faces[3] = Face { .a=0, .b=7, .c=4, };
-    mesh.faces[4] = Face { .a=0, .b=1, .c=5, };
-    mesh.faces[5] = Face { .a=0, .b=5, .c=4, };
+    mesh.faces[2] = Face { .a=3, .b=2, .c=6, };
+    mesh.faces[3] = Face { .a=3, .b=6, .c=7, };
+    mesh.faces[4] = Face { .a=7, .b=6, .c=5, };
+    mesh.faces[5] = Face { .a=7, .b=5, .c=4, };
 
-    mesh.faces[6] = Face { .a=1, .b=2, .c=6, };
-    mesh.faces[7] = Face { .a=1, .b=6, .c=5, };
-    mesh.faces[8] = Face { .a=2, .b=6, .c=7, };
-    mesh.faces[9] = Face { .a=2, .b=7, .c=3, };
-    mesh.faces[10] = Face { .a=5, .b=7, .c=6, };
-    mesh.faces[11] = Face { .a=5, .b=4, .c=7, };
+    mesh.faces[6] = Face { .a=4, .b=5, .c=1, };
+    mesh.faces[7] = Face { .a=4, .b=1, .c=0, };
+    mesh.faces[8] = Face { .a=0, .b=3, .c=4, };
+    mesh.faces[9] = Face { .a=3, .b=7, .c=4, };
+    mesh.faces[10] = Face { .a=1, .b=6, .c=2, };
+    mesh.faces[11] = Face { .a=1, .b=5, .c=6, };
 
     var meshes = []Mesh{mesh};
 
     warn("\n");
     computeVerticeNormalsDbg(true, meshes[0..]);
 
-    //var movement = geo.V3f32.init(0.01, 0.01, 0); // Small amount of movement
+    var movement = geo.V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
-    //var camera_position = geo.V3f32.init(0, 0, 3);
-    //var camera_target = geo.V3f32.initVal(0);
-    //var camera = Camera.init(camera_position, camera_target);
+    var camera_position = geo.V3f32.init(0, 0, 3);
+    var camera_target = geo.V3f32.initVal(0);
+    var camera = Camera.init(camera_position, camera_target);
 
-    //// Loop until end_time is reached but always loop once :)
-    //var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
-    //var timer = try time.Timer.start();
-    //var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
-    //while (true) {
-    //    window.clear();
+    // Loop until end_time is reached but always loop once :)
+    var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
+    var timer = try time.Timer.start();
+    var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
+    while (true) {
+        window.clear();
 
-    //    if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
-    //    window.render(&camera, &meshes);
+        if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
+        window.render(&camera, &meshes);
 
-    //    var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
-    //    window.drawPointV2f32(center, 0xffffffff);
+        var center = geo.V2f32.init(window.widthf / 2, window.heightf / 2);
+        window.drawPointV2f32(center, 0xffffffff);
 
-    //    window.present();
+        window.present();
 
-    //    meshes[0].rotation = meshes[0].rotation.add(&movement);
+        meshes[0].rotation = meshes[0].rotation.add(&movement);
 
-    //    if (timer.read() > end_time) break;
-    //}
+        if (timer.read() > end_time) break;
+    }
 }
 
 test "window.world.to.screen" {
