@@ -813,7 +813,8 @@ test "window.keyctrl.triangle" {
 
         var meshes = []Mesh{mesh};
 
-        computeVerticeNormals(meshes[0..]);
+        warn("\n");
+        computeVerticeNormalsDbg(if (DBG) true else false, meshes[0..]);
 
         keyCtrlMeshes(&window, &meshes);
     }
