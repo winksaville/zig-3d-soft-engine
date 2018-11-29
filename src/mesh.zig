@@ -102,6 +102,8 @@ pub const Mesh = struct {
 /// Compute the normal for each vertice. Assume the faces in the mesh
 /// are ordered counter clockwise so the computed normal always points
 /// "out".
+///
+/// Note: From http://www.iquilezles.org/www/articles/normals/normals.htm
 pub fn computeVerticeNormalsDbg(comptime dbg: bool, meshes: []Mesh) void {
     if (dbg) warn("computeVn:\n");
     // Loop over each mesh
@@ -120,15 +122,13 @@ pub fn computeVerticeNormalsDbg(comptime dbg: bool, meshes: []Mesh) void {
             var c: V3f32 = msh.vertices[face.c].coord;
             if (dbg) warn("    {}={}  {}={}  {}={}\n", face.a, a, face.b, b, face.c, c);
 
-            // Use two edges to compute the face normal
-            var ab: V3f32 = b.sub(&a);
-            var bc: V3f32 = c.sub(&b);
-            if (dbg) warn("   ab={} bc={}", ab, bc);
-
-            // Compute the face normal
+            // Use two edges and compute the face normal
+            var ab: V3f32 = a.sub(&b);
+            var bc: V3f32 = b.sub(&c);
             var nm = ab.cross(&bc);
-            if (dbg) warn(" nm={}\n", nm);
+            if (dbg) warn("   ab={} bc={} nm={}", ab, bc, nm);
 
+            // Sum the face normals into this faces vertices.normal_coord
             msh.vertices[face.a].normal_coord = msh.vertices[face.a].normal_coord.add(&nm);
             msh.vertices[face.b].normal_coord = msh.vertices[face.b].normal_coord.add(&nm);
             msh.vertices[face.c].normal_coord = msh.vertices[face.c].normal_coord.add(&nm);
