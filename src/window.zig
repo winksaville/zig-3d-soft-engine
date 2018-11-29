@@ -820,6 +820,27 @@ test "window.keyctrl.triangle" {
     }
 }
 
+test "window.keyctrl.cube" {
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 640, 480, "render.cube");
+    defer window.deinit();
+
+    var file_name = "res/cube.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
+
+    var mesh = try Mesh.initJson(pAllocator, "cube", tree);
+    assert(std.mem.eql(u8, mesh.name, "cube"));
+
+    var meshes = []Mesh{mesh};
+
+    keyCtrlMeshes(&window, &meshes);
+}
+
 test "window.keyctrl.suzanne" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
