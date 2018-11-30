@@ -13,7 +13,9 @@ const V2f32 = geo.V2f32;
 const V3f32 = geo.V3f32;
 const M44f32 = geo.M44f32;
 
-const parseJsonFile = @import("parse_json_file.zig").parseJsonFile;
+const parseJsonFile = @import("../modules/zig-json/parse_json_file.zig").parseJsonFile;
+const createMeshFromBabylonJson = @import("create_mesh_from_babylon_json.zig").createMeshFromBabylonJson;
+//const createMeshFromBabylonJson = @import("../modules/zig-json/create_mesh_from_babylon_json.zig").createMeshFromBabylonJson;
 
 const Camera = @import("camera.zig").Camera;
 
@@ -25,6 +27,7 @@ const computeVerticeNormals = meshns.computeVerticeNormals;
 const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
+
 
 const DBG = true;
 const DBG1 = false;
@@ -821,53 +824,55 @@ test "window.keyctrl.triangle" {
     }
 }
 
-//test "window.keyctrl.cube" {
-//    var direct_allocator = std.heap.DirectAllocator.init();
-//    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-//    defer arena_allocator.deinit();
-//    var pAllocator = &arena_allocator.allocator;
-//
-//    var window = try Window.init(pAllocator, 640, 480, "render.cube");
-//    defer window.deinit();
-//
-//    var file_name = "res/cube.babylon";
-//    var tree = try parseJsonFile(pAllocator, file_name);
-//    defer tree.deinit();
-//
-//    var mesh = try Mesh.initJson(pAllocator, "cube", tree);
-//    assert(std.mem.eql(u8, mesh.name, "cube"));
-//
-//    var meshes = []Mesh{mesh};
-//
-//    keyCtrlMeshes(&window, &meshes);
-//}
-//
-//test "window.keyctrl.suzanne" {
-//    if (DBG) {
-//        var direct_allocator = std.heap.DirectAllocator.init();
-//        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-//        defer arena_allocator.deinit();
-//        var pAllocator = &arena_allocator.allocator;
-//
-//        var window = try Window.init(pAllocator, 800, 600, "testWindow");
-//        defer window.deinit();
-//
-//        // Black background color
-//        window.setBgColor(0);
-//
-//        var file_name = "res/suzanne.babylon";
-//        var tree = try parseJsonFile(pAllocator, file_name);
-//        defer tree.deinit();
-//
-//        var mesh = try Mesh.initJson(pAllocator, "suzanne", tree);
-//        assert(std.mem.eql(u8, mesh.name, "suzanne"));
-//        assert(mesh.vertices.len == 507);
-//        assert(mesh.faces.len == 968);
-//
-//        var meshes = []Mesh{mesh};
-//        keyCtrlMeshes(&window, &meshes);
-//    }
-//}
+test "window.keyctrl.cube" {
+    if (DBG) {
+        var direct_allocator = std.heap.DirectAllocator.init();
+        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+        defer arena_allocator.deinit();
+        var pAllocator = &arena_allocator.allocator;
+
+        var window = try Window.init(pAllocator, 640, 480, "render.cube");
+        defer window.deinit();
+
+        var file_name = "modules/3d-test-resources/cube.babylon";
+        var tree = try parseJsonFile(pAllocator, file_name);
+        defer tree.deinit();
+
+        var mesh = try createMeshFromBabylonJson(pAllocator, "cube", tree);
+        assert(std.mem.eql(u8, mesh.name, "cube"));
+
+        var meshes = []Mesh{mesh};
+
+        keyCtrlMeshes(&window, &meshes);
+    }
+}
+
+test "window.keyctrl.suzanne" {
+    if (DBG) {
+        var direct_allocator = std.heap.DirectAllocator.init();
+        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+        defer arena_allocator.deinit();
+        var pAllocator = &arena_allocator.allocator;
+
+        var window = try Window.init(pAllocator, 800, 600, "testWindow");
+        defer window.deinit();
+
+        // Black background color
+        window.setBgColor(0);
+
+        var file_name = "modules/3d-test-resources/suzanne.babylon";
+        var tree = try parseJsonFile(pAllocator, file_name);
+        defer tree.deinit();
+
+        var mesh = try createMeshFromBabylonJson(pAllocator, "suzanne", tree);
+        assert(std.mem.eql(u8, mesh.name, "suzanne"));
+        assert(mesh.vertices.len == 507);
+        assert(mesh.faces.len == 968);
+
+        var meshes = []Mesh{mesh};
+        keyCtrlMeshes(&window, &meshes);
+    }
+}
 
 const KeyState = struct {
     new_key: bool,

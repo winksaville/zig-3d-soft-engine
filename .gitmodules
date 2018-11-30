@@ -8,3 +8,6 @@
 [submodule "modules/zig-geometry"]
 	path = modules/zig-geometry
 	url = git@github.com:winksaville/zig-geometry.git
+[submodule "modules/3d-test-resources"]
+	path = modules/3d-test-resources
+	url = git@github.com:winksaville/3d-test-resources
