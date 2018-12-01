@@ -8,6 +8,8 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
+const misc = @import("../modules/zig-misc/index.zig");
+
 const geo = @import("../modules/zig-geometry/index.zig");
 const V2f32 = geo.V2f32;
 const V3f32 = geo.V3f32;
@@ -29,7 +31,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 const ie = @import("input_events.zig");
 
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -148,7 +150,7 @@ pub const Window = struct {
             pixel.* = pSelf.bg_color;
         }
         for (pSelf.zbuffer) |*elem| {
-            elem.* = math.f32_max; //math.maxValue(@typeOf(elem.*));
+            elem.* = misc.maxValue(@typeOf(elem.*));
         }
     }
 
