@@ -11,3 +11,6 @@
 [submodule "modules/3d-test-resources"]
 	path = modules/3d-test-resources
 	url = git@github.com:winksaville/3d-test-resources
+[submodule "modules/zig-misc"]
+	path = modules/zig-misc
+	url = git@github.com:winksaville/zig-misc.git
