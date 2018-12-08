@@ -1,4 +1,6 @@
 const builtin = @import("builtin");
+const TypeId = builtin.TypeId;
+
 const std = @import("std");
 const time = std.os.time;
 const mem = std.mem;
@@ -9,6 +11,7 @@ const warn = std.debug.warn;
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 
 const misc = @import("../modules/zig-misc/index.zig");
+const saturateCast = misc.saturateCast;
 
 const geo = @import("../modules/zig-geometry/index.zig");
 const V2f32 = geo.V2f32;
@@ -30,7 +33,6 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-
 const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
@@ -51,6 +53,125 @@ const ScanLineData = struct {
     pub ndotld: f32,
 };
 
+pub fn Color(comptime T: type) type {
+    const ParamType = switch (@typeId(T)) {
+        TypeId.Float => T,
+        TypeId.Int => if (T.is_signed) isize else usize,
+        else => @compileError("Expected Float or Int type"),
+    };
+
+    return struct {
+        const Self = @This();
+
+        const Black = Self { .r = 0, .g = 0, .b = 0, .a = misc.maxValue(T) };
+        const White = Self { .r = misc.maxValue(T), .g = misc.maxValue(T), .b = misc.maxValue(T), .a = misc.maxValue(T) };
+        const Red = Self { .r = misc.maxValue(T), .g = 0, .b = 0, .a = misc.maxValue(T) };
+        const Blue = Self { .r = 0, .g = misc.maxValue(T), .b = 0, .a = misc.maxValue(T) };
+        const Green = Self { .r = 0, .g = 0, .b = misc.maxValue(T), .a = misc.maxValue(T) };
+
+        r: T,
+        g: T,
+        b: T,
+        a: T,
+
+        pub fn init(r: ParamType, g: ParamType, b: ParamType, a: ParamType) Self {
+            return Self {
+                .r = saturateCast(T, r),
+                .g = saturateCast(T, g),
+                .b = saturateCast(T, b),
+                .a = saturateCast(T, a),
+            };
+        }
+
+        // If defined here then in test "Color" warn("d={}\n", &d) causes a compile error
+        //pub fn asU32Rgba(pSelf: *const Self) u32 {
+        //    var result: u32 = (saturateCast(u32, pSelf.a) << 24) | (saturateCast(u32, pSelf.r) << 16) | (saturateCast(u32, pSelf.g) << 8) | (saturateCast(u32, pSelf.b) << 0);
+        //    return result;
+        //}
+
+        /// Scale each of the rgb components by other
+        pub fn colorScale(color: Self, other: f32) Self {
+            var r: T = saturateCast(T, math.round(saturateCast(f32, (color.r)) * other));
+            var g: T = saturateCast(T, math.round(saturateCast(f32, (color.g)) * other));
+            var b: T = saturateCast(T, math.round(saturateCast(f32, (color.b)) * other));
+            var a: T = color.a;
+
+            var result = Self {
+                .r = r,
+                .g = g,
+                .b = b,
+                .a = a,
+            };
+            if (DBG3) warn("colorScale: color={x} other={.5} r={}\n", color, other, result);
+            return result;
+        }
+
+        /// Custom format routine
+        pub fn format(
+            pSelf: *const Self,
+            comptime fmt: []const u8,
+            context: var,
+            comptime FmtError: type,
+            output: fn (@typeOf(context), []const u8) FmtError!void,
+        ) FmtError!void {
+            try formatColor(T, pSelf, fmt, context, FmtError, output);
+        }
+    };
+}
+
+
+/// Custom format routine
+fn formatColor(
+    comptime T: type,
+    pSelf: *const Color(T),
+    comptime fmt: []const u8,
+    context: var,
+    comptime FmtError: type,
+    output: fn (@typeOf(context), []const u8) FmtError!void,
+) FmtError!void {
+    try std.fmt.format(context, FmtError, output, "{{ ");
+    try formatOneColor(T, pSelf.r, fmt, context, FmtError, output, false);
+    try formatOneColor(T, pSelf.g, fmt, context, FmtError, output, false);
+    try formatOneColor(T, pSelf.b, fmt, context, FmtError, output, false);
+    try formatOneColor(T, pSelf.a, fmt, context, FmtError, output, true);
+    try std.fmt.format(context, FmtError, output, "}}");
+}
+
+fn formatOneColor(
+    comptime T: type,
+    color: T,
+    comptime fmt: []const u8,
+    context: var,
+    comptime FmtError: type,
+    output: fn (@typeOf(context), []const u8) FmtError!void,
+    last: bool,
+) FmtError!void {
+    switch (@typeId(T)) {
+        TypeId.Float => try std.fmt.format(context, FmtError, output, "{}{.3}{}", if (math.signbit(color)) "-" else " ", if (math.signbit(color)) -color else color, if (!last) ", " else " "),
+        TypeId.Int => try std.fmt.format(context, FmtError, output, "{d6}{}", color, if (!last) ", " else " "),
+        else => @compileError("Expected Float or Int type"),
+    }
+}
+
+test "Color" {
+    warn("\n");
+
+    var c = Color(f32).init(1, 0, 0, 1);
+    warn("c={}\n", &c);
+    var d = Color(i10).init(1, 0, 0, 1);
+    warn("d={}\n", &d);
+    var u = Color(u10).init(1, 0, 0, 1);
+    warn("u={}\n", &u);
+}
+
+pub const WinColor = Color(u8);
+
+pub fn asU32Rgba(pColor: WinColor) u32 {
+    var result: u32 = (saturateCast(u32, pColor.a) << 24) | (saturateCast(u32, pColor.r) << 16) | (saturateCast(u32, pColor.g) << 8) | (saturateCast(u32, pColor.b) << 0);
+    return result;
+}
+
+
 pub const Window = struct {
     const Self = @This();
 
@@ -62,7 +183,7 @@ pub const Window = struct {
     heightci: c_int,
     heightf: f32,
     name: []const u8,
-    bg_color: u32,
+    bg_color: WinColor,
     pixels: []u32,
     zbuffer: []f32,
     sdl_window: *gl.SDL_Window,
@@ -87,7 +208,7 @@ pub const Window = struct {
             .sdl_texture = undefined,
         };
 
-        self.setBgColor(0); //xffffffff);
+        self.setBgColor(WinColor.Black);
 
         // Initialize SDL
         if (gl.SDL_Init(gl.SDL_INIT_VIDEO | gl.SDL_INIT_AUDIO) != 0) {
@@ -140,22 +261,22 @@ pub const Window = struct {
         gl.SDL_Quit();
     }
 
-    pub fn setBgColor(pSelf: *Self, color: u32) void {
+    pub fn setBgColor(pSelf: *Self, color: WinColor) void {
         pSelf.bg_color = color;
     }
 
     pub fn clear(pSelf: *Self) void {
         // Init Pixel buffer
         for (pSelf.pixels) |*pixel| {
-            pixel.* = pSelf.bg_color;
+            pixel.* = asU32Rgba(pSelf.bg_color);
         }
         for (pSelf.zbuffer) |*elem| {
             elem.* = misc.maxValue(@typeOf(elem.*));
         }
     }
 
-    pub fn putPixel(pSelf: *Self, x: usize, y: usize, z: f32, color: u32) void {
-        if (DBG3) warn("putPixel: x={} y={} z={.3} c={x}\n", x, y, color);
+    pub fn putPixel(pSelf: *Self, x: usize, y: usize, z: f32, color: WinColor) void {
+        if (DBG3) warn("putPixel: x={} y={} z={.3} c={}\n", x, y, z, &color);
         var index = (y * pSelf.width) + x;
 
         // If z is behind or equal to (>=) a previouly written pixel just return.
@@ -163,7 +284,7 @@ pub const Window = struct {
         if (z >= pSelf.zbuffer[index]) return;
         pSelf.zbuffer[index] = z;
 
-        pSelf.pixels[index] = color;
+        pSelf.pixels[index] = asU32Rgba(color);
     }
 
     pub fn getPixel(pSelf: *Self, x: usize, y: usize) u32 {
@@ -185,38 +306,38 @@ pub const Window = struct {
     }
 
     /// Draw a Vec2 point in screen coordinates clipping it if its outside the screen
-    pub fn drawPointV2f32(pSelf: *Self, point: V2f32, color: u32) void {
+    pub fn drawPointV2f32(pSelf: *Self, point: V2f32, color: WinColor) void {
         pSelf.drawPointXy(@floatToInt(isize, point.x()), @floatToInt(isize, point.y()), color);
     }
 
     /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
-    pub fn drawPointXy(pSelf: *Self, x: isize, y: isize, color: u32) void {
-        //if (DBG) warn("drawPointXy: x={} y={} c={x}\n", x, y, color);
+    pub fn drawPointXy(pSelf: *Self, x: isize, y: isize, color: WinColor) void {
+        //if (DBG) warn("drawPointXy: x={} y={} c={}\n", x, y, &color);
         if ((x >= 0) and (y >= 0)) {
             var ux = @bitCast(usize, x);
             var uy = @bitCast(usize, y);
             if ((ux < pSelf.width) and (uy < pSelf.height)) {
-                //if (DBG) warn("drawPointXy: putting x={} y={} c={x}\n", ux, uy, color);
+                //if (DBG) warn("drawPointXy: putting x={} y={} c={}\n", ux, uy, &color);
                 pSelf.putPixel(ux, uy, -math.f32_max, color);
             }
         }
     }
 
     /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
-    pub fn drawPointXyz(pSelf: *Self, x: isize, y: isize, z: f32, color: u32) void {
-        //if (DBG) warn("drawPointXy: x={} y={} z={.3} c={x}\n", x, y, color);
+    pub fn drawPointXyz(pSelf: *Self, x: isize, y: isize, z: f32, color: WinColor) void {
+        //if (DBG) warn("drawPointXy: x={} y={} z={.3} c={}\n", x, y, &color);
         if ((x >= 0) and (y >= 0)) {
             var ux = @bitCast(usize, x);
             var uy = @bitCast(usize, y);
             if ((ux < pSelf.width) and (uy < pSelf.height)) {
-                //if (DBG) warn("drawPointXy: putting x={} y={} c={x}\n", ux, uy, color);
+                //if (DBG) warn("drawPointXy: putting x={} y={} c={}\n", ux, uy, &color);
                 pSelf.putPixel(ux, uy, z, color);
             }
         }
     }
 
     /// Draw a line point0 and 1 are in screen coordinates
-    pub fn drawLine(pSelf: *Self, point0: V2f32, point1: V2f32, color: u32) void {
+    pub fn drawLine(pSelf: *Self, point0: V2f32, point1: V2f32, color: WinColor) void {
         var diff = point1.sub(&point0);
         var dist = diff.length();
         //if (DBG) warn("drawLine: diff={} dist={}\n", diff, dist);
@@ -233,7 +354,7 @@ pub const Window = struct {
     }
 
     /// Draw a line point0 and 1 are in screen coordinates using Bresnham algorithm
-    pub fn drawBline(pSelf: *Self, point0: V2f32, point1: V2f32, color: u32) void {
+    pub fn drawBline(pSelf: *Self, point0: V2f32, point1: V2f32, color: WinColor) void {
         //@setRuntimeSafety(false);
         var x0 = @floatToInt(isize, point0.x());
         var y0 = @floatToInt(isize, point0.y());
@@ -279,7 +400,7 @@ pub const Window = struct {
     }
 
     /// Draw a V3f32 point in screen coordinates clipping it if its outside the screen
-    pub fn drawPointV3f32(pSelf: *Self, point: V3f32, color: u32) void {
+    pub fn drawPointV3f32(pSelf: *Self, point: V3f32, color: WinColor) void {
         pSelf.drawPointXyz(@floatToInt(isize, math.trunc(point.x())), @floatToInt(isize, math.trunc(point.y())), point.z(), color);
     }
 
@@ -307,23 +428,11 @@ pub const Window = struct {
         return r;
     }
 
-    /// Scale each of the rgb components by other
-    pub fn colorScale(color: u32, other: f32) u32 {
-        var b: u32 = @floatToInt(u32, math.round(@intToFloat(f32, (color >> 0) & 0xff) * other));
-        var g: u32 = @floatToInt(u32, math.round(@intToFloat(f32, (color >> 8) & 0xff) * other));
-        var r: u32 = @floatToInt(u32, math.round(@intToFloat(f32, (color >> 16) & 0xff) * other));
-        var a: u32 = (color >> 24) & 0xff;
-
-        var result = (a << 24) | (r << 16) | (g << 8) | (b << 0);
-        if (DBG3) warn("colorScale: color={x} other={.5} r={x}\n", color, other, result);
-        return result;
-    }
-
     /// Draw a horzitontal scan line at y between line a lined defined by
     /// va:vb to another defined line vc:vd. It is assumed they have
     /// already been sorted and we're drawing horizontal lines with
     /// line va:vb on the left and vc:vd on the right.
-    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, va: Vertex, vb: Vertex, vc: Vertex, vd: Vertex, color: u32) void {
+    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, va: Vertex, vb: Vertex, vc: Vertex, vd: Vertex, color: WinColor) void {
         var pa = va.coord;
         var pb = vb.coord;
         var pc = vc.coord;
@@ -352,11 +461,11 @@ pub const Window = struct {
             var z = interpolate(sz, ez, gradient);
             var ndotl = interpolate(snl, enl, gradient);
 
-            pSelf.drawPointXyz(x, scanLineData.y, z, colorScale(color, ndotl));
+            pSelf.drawPointXyz(x, scanLineData.y, z, color.colorScale(ndotl));
         }
     }
 
-    pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: u32) void {
+    pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: WinColor) void {
         // Sort the points finding top, mid, bottom.
         var t = v1; // Top
         var m = v2; // Mid
@@ -473,7 +582,7 @@ pub const Window = struct {
                 const vc = mesh.vertices[face.c];
                 if (DBG3) warn("\nva={} vb={} vc={}\n", va.coord, vb.coord, vc.coord);
 
-                var color: u32 = 0xffff00ff;
+                var color = WinColor.init(0xff, 0, 0xff, 0xff);
 
                 switch (DBG_RenderMode) {
                     RenderMode.Points => {
@@ -504,8 +613,8 @@ pub const Window = struct {
                         if (DBG3) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
 
                         var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
-                        var colorU32: u32 = @floatToInt(u32, math.round(colorF32 * 256.0)) & 0xff;
-                        color = (0xFF << 24) | (colorU32 << 16) | (colorU32 << 8) | colorU32;
+                        var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
+                        color = WinColor.init(colorU8, colorU8, colorU8, colorU8);
                         pSelf.drawTriangle(tva, tvb, tvc, color);
                     },
                 }
@@ -532,8 +641,9 @@ test "window" {
     assert(window.heightci == 480);
     assert(window.heightf == f32(480));
     assert(mem.eql(u8, window.name, "testWindow"));
-    window.putPixel(0, 0, 0, 0x01020304);
-    assert(window.getPixel(0, 0) == 0x01020304);
+    var color = WinColor.init(0x01,02,03,04);
+    window.putPixel(0, 0, 0, color);
+    assert(window.getPixel(0, 0) == asU32Rgba(color));
 }
 
 test "window.projectRetV2f32" {
@@ -581,12 +691,13 @@ test "window.drawPointV2f32" {
     defer window.deinit();
 
     var p1 = V2f32.init(0, 0);
-    window.drawPointV2f32(p1, 0x80808080);
-    assert(window.getPixel(0, 0) == 0x80808080);
+    var color = WinColor.init(0x80, 0x80, 0x80, 0x80);
+    window.drawPointV2f32(p1, color);
+    assert(window.getPixel(0, 0) == asU32Rgba(color));
 
     p1 = V2f32.init(window.widthf / 2, window.heightf / 2);
-    window.drawPointV2f32(p1, 0x80808080);
-    assert(window.getPixel(window.width / 2, window.height / 2) == 0x80808080);
+    window.drawPointV2f32(p1, color);
+    assert(window.getPixel(window.width / 2, window.height / 2) == asU32Rgba(color));
 }
 
 test "window.projectRetVertex" {
@@ -635,10 +746,11 @@ test "window.drawLine" {
 
     var point1 = V2f32.init(1, 1);
     var point2 = V2f32.init(4, 4);
-    window.drawLine(point1, point2, 0x80808080);
-    assert(window.getPixel(1, 1) == 0x80808080);
-    assert(window.getPixel(2, 2) == 0x80808080);
-    assert(window.getPixel(3, 3) == 0x80808080);
+    var color = WinColor.init(0x80, 0x80, 0x80, 0x80);
+    window.drawLine(point1, point2, color);
+    assert(window.getPixel(1, 1) == asU32Rgba(color));
+    assert(window.getPixel(2, 2) == asU32Rgba(color));
+    assert(window.getPixel(3, 3) == asU32Rgba(color));
 }
 
 test "window.world.to.screen" {
@@ -711,12 +823,14 @@ test "window.world.to.screen" {
             assert(projected_vert.approxEql(&expected_projected_vertexs[i], 6));
 
             var point = window.projectRetV2f32(projected_vert, &geo.m44f32_unit);
-            window.drawPointV2f32(point, 0xffff00ff);
-            assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == 0xffff00ff);
+
+            var color = WinColor.init(0xff, 0xff, 00, 0xff);
+            window.drawPointV2f32(point, color);
+            assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == asU32Rgba(color));
         }
 
         var center = V2f32.init(window.widthf / 2, window.heightf / 2);
-        window.drawPointV2f32(center, 0xffffffff);
+        window.drawPointV2f32(center, WinColor.White);
 
         window.present();
 
@@ -786,7 +900,7 @@ test "window.render.cube" {
         window.render(&camera, &meshes);
 
         var center = V2f32.init(window.widthf / 2, window.heightf / 2);
-        window.drawPointV2f32(center, 0xffffffff);
+        window.drawPointV2f32(center, WinColor.White);
 
         window.present();
 
@@ -807,7 +921,7 @@ test "window.keyctrl.triangle" {
         defer window.deinit();
 
         // Black background color
-        window.setBgColor(0);
+        window.setBgColor(WinColor.Black);
 
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
@@ -860,7 +974,7 @@ test "window.keyctrl.suzanne" {
         defer window.deinit();
 
         // Black background color
-        window.setBgColor(0);
+        window.setBgColor(WinColor.Black);
 
         var file_name = "modules/3d-test-resources/suzanne.babylon";
         var tree = try parseJsonFile(pAllocator, file_name);
@@ -965,7 +1079,7 @@ fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
         pWindow.clear();
 
         var center = V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
-        pWindow.drawPointV2f32(center, 0xffffffff);
+        pWindow.drawPointV2f32(center, WinColor.White);
 
         if (DBG or DBG1 or DBG2) warn("\n");
 
