@@ -57,11 +57,11 @@ pub fn Color(comptime A: type, comptime R: type, comptime G: type, comptime B: t
     return struct {
         const Self = @This();
 
-        const Black = Self { .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
-        const White = Self { .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.maxValue(G), .b = misc.maxValue(B) };
-        const Red = Self { .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
-        const Blue = Self { .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.maxValue(G), .b = misc.minValue(B) };
-        const Green = Self { .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.maxValue(B) };
+        const Black = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
+        const White = Self{ .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.maxValue(G), .b = misc.maxValue(B) };
+        const Red = Self{ .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
+        const Blue = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.maxValue(G), .b = misc.minValue(B) };
+        const Green = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.maxValue(B) };
 
         a: A,
         r: R,
@@ -69,7 +69,7 @@ pub fn Color(comptime A: type, comptime R: type, comptime G: type, comptime B: t
         b: B,
 
         pub fn init(a: A, r: R, g: G, b: B) Self {
-            return Self {
+            return Self{
                 .a = saturateCast(A, a),
                 .r = saturateCast(R, r),
                 .g = saturateCast(G, g),
@@ -93,7 +93,7 @@ pub fn Color(comptime A: type, comptime R: type, comptime G: type, comptime B: t
             var g: G = saturateCast(G, math.round(saturateCast(f32, (color.g)) * other));
             var b: B = saturateCast(B, math.round(saturateCast(f32, (color.b)) * other));
 
-            var result = Self {
+            var result = Self{
                 .a = a,
                 .r = r,
                 .g = g,
@@ -388,7 +388,7 @@ pub const Window = struct {
         var x = (point.x() * pSelf.widthf) + (pSelf.widthf / 2.0);
         var y = (-point.y() * pSelf.heightf) + (pSelf.heightf / 2.0);
 
-        return Vertex {
+        return Vertex{
             .coord = V3f32.init(x, y, point.z()),
             .world_coord = point_world,
             .normal_coord = normal_world,
@@ -453,7 +453,7 @@ pub const Window = struct {
         // Draw a horzitional line between start and end x
         var x: isize = sx;
         while (x < ex) : (x += 1) {
-            var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex -sx));
+            var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex - sx));
             var z = interpolate(sz, ez, gradient);
             var ndotl = interpolate(snl, enl, gradient);
 
@@ -637,7 +637,7 @@ test "window" {
     assert(window.heightci == 480);
     assert(window.heightf == f32(480));
     assert(mem.eql(u8, window.name, "testWindow"));
-    var color = WinColor.init(0x01,02,03,04);
+    var color = WinColor.init(0x01, 02, 03, 04);
     window.putPixel(0, 0, 0, color);
     assert(window.getPixel(0, 0) == color.asU32Argb());
 }
@@ -705,27 +705,27 @@ test "window.projectRetVertex" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = Vertex { .coord = V3f32.init(0, 0, 0), .world_coord = undefined, .normal_coord = undefined, };
+    var v1 = Vertex{ .coord = V3f32.init(0, 0, 0), .world_coord = undefined, .normal_coord = undefined };
     var r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf / 2.0);
     assert(r.coord.y() == window.heightf / 2.0);
 
-    v1 = Vertex { .coord = V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex{ .coord = V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == 0);
 
-    v1 = Vertex { .coord = V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex{ .coord = V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex { .coord = V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex{ .coord = V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex { .coord = V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined, };
+    v1 = Vertex{ .coord = V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined };
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == 0);
@@ -849,30 +849,30 @@ test "window.render.cube" {
     mesh = try Mesh.init(pAllocator, "mesh1", 8, 12);
 
     // Unit cube about 0,0,0
-    mesh.vertices[0] = Vertex { .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[1] = Vertex { .coord = V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[2] = Vertex { .coord = V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[3] = Vertex { .coord = V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[0] = Vertex{ .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[1] = Vertex{ .coord = V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[2] = Vertex{ .coord = V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[3] = Vertex{ .coord = V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
 
-    mesh.vertices[4] = Vertex { .coord = V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[5] = Vertex { .coord = V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[6] = Vertex { .coord = V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-    mesh.vertices[7] = Vertex { .coord = V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+    mesh.vertices[4] = Vertex{ .coord = V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[5] = Vertex{ .coord = V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[6] = Vertex{ .coord = V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[7] = Vertex{ .coord = V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
 
     // 12 faces
-    mesh.faces[0] = Face { .a=0, .b=1, .c=2, };
-    mesh.faces[1] = Face { .a=0, .b=2, .c=3, };
-    mesh.faces[2] = Face { .a=3, .b=2, .c=6, };
-    mesh.faces[3] = Face { .a=3, .b=6, .c=7, };
-    mesh.faces[4] = Face { .a=7, .b=6, .c=5, };
-    mesh.faces[5] = Face { .a=7, .b=5, .c=4, };
+    mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2 };
+    mesh.faces[1] = Face{ .a = 0, .b = 2, .c = 3 };
+    mesh.faces[2] = Face{ .a = 3, .b = 2, .c = 6 };
+    mesh.faces[3] = Face{ .a = 3, .b = 6, .c = 7 };
+    mesh.faces[4] = Face{ .a = 7, .b = 6, .c = 5 };
+    mesh.faces[5] = Face{ .a = 7, .b = 5, .c = 4 };
 
-    mesh.faces[6] = Face { .a=4, .b=5, .c=1, };
-    mesh.faces[7] = Face { .a=4, .b=1, .c=0, };
-    mesh.faces[8] = Face { .a=0, .b=3, .c=4, };
-    mesh.faces[9] = Face { .a=3, .b=7, .c=4, };
-    mesh.faces[10] = Face { .a=1, .b=6, .c=2, };
-    mesh.faces[11] = Face { .a=1, .b=5, .c=6, };
+    mesh.faces[6] = Face{ .a = 4, .b = 5, .c = 1 };
+    mesh.faces[7] = Face{ .a = 4, .b = 1, .c = 0 };
+    mesh.faces[8] = Face{ .a = 0, .b = 3, .c = 4 };
+    mesh.faces[9] = Face{ .a = 3, .b = 7, .c = 4 };
+    mesh.faces[10] = Face{ .a = 1, .b = 6, .c = 2 };
+    mesh.faces[11] = Face{ .a = 1, .b = 5, .c = 6 };
 
     var meshes = []Mesh{mesh};
 
@@ -921,11 +921,11 @@ test "window.keyctrl.triangle" {
 
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
-        mesh.vertices[0] = Vertex { .coord = V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[1] = Vertex { .coord = V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
-        mesh.vertices[2] = Vertex { .coord = V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0), };
+        mesh.vertices[0] = Vertex{ .coord = V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+        mesh.vertices[1] = Vertex{ .coord = V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+        mesh.vertices[2] = Vertex{ .coord = V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
 
-        mesh.faces[0] = Face { .a=0, .b=1, .c=2 };
+        mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2 };
 
         var meshes = []Mesh{mesh};
 
@@ -1053,7 +1053,7 @@ fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
     return ie.EventResult.Continue;
 }
 
-fn keyCtrlMeshes(pWindow: *Window, meshes: [] Mesh) void {
+fn keyCtrlMeshes(pWindow: *Window, meshes: []Mesh) void {
     var camera_position = V3f32.init(0, 0, 3);
     var camera_target = V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
