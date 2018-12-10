@@ -53,33 +53,27 @@ const ScanLineData = struct {
     pub ndotld: f32,
 };
 
-pub fn Color(comptime T: type) type {
-    const ParamType = switch (@typeId(T)) {
-        TypeId.Float => T,
-        TypeId.Int => if (T.is_signed) isize else usize,
-        else => @compileError("Expected Float or Int type"),
-    };
-
+pub fn Color(comptime A: type, comptime R: type, comptime G: type, comptime B: type) type {
     return struct {
         const Self = @This();
 
-        const Black = Self { .a = misc.maxValue(T), .r = 0, .g = 0, .b = 0 };
-        const White = Self { .a = misc.maxValue(T), .r = misc.maxValue(T), .g = misc.maxValue(T), .b = misc.maxValue(T) };
-        const Red = Self { .a = misc.maxValue(T), .r = misc.maxValue(T), .g = 0, .b = 0 };
-        const Blue = Self { .a = misc.maxValue(T), .r = 0, .g = misc.maxValue(T), .b = 0 };
-        const Green = Self { .a = misc.maxValue(T), .r = 0, .g = 0, .b = misc.maxValue(T) };
+        const Black = Self { .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
+        const White = Self { .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.maxValue(G), .b = misc.maxValue(B) };
+        const Red = Self { .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
+        const Blue = Self { .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.maxValue(G), .b = misc.minValue(B) };
+        const Green = Self { .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.maxValue(B) };
 
-        a: T,
-        r: T,
-        g: T,
-        b: T,
+        a: A,
+        r: R,
+        g: G,
+        b: B,
 
-        pub fn init(a: ParamType, r: ParamType, g: ParamType, b: ParamType,) Self {
+        pub fn init(a: A, r: R, g: G, b: B) Self {
             return Self {
-                .a = saturateCast(T, a),
-                .r = saturateCast(T, r),
-                .g = saturateCast(T, g),
-                .b = saturateCast(T, b),
+                .a = saturateCast(A, a),
+                .r = saturateCast(R, r),
+                .g = saturateCast(G, g),
+                .b = saturateCast(B, b),
             };
         }
 
@@ -94,16 +88,16 @@ pub fn Color(comptime T: type) type {
 
         /// Scale each of the rgb components by other
         pub fn colorScale(color: Self, other: f32) Self {
-            var r: T = saturateCast(T, math.round(saturateCast(f32, (color.r)) * other));
-            var g: T = saturateCast(T, math.round(saturateCast(f32, (color.g)) * other));
-            var b: T = saturateCast(T, math.round(saturateCast(f32, (color.b)) * other));
-            var a: T = color.a;
+            var a: A = color.a;
+            var r: R = saturateCast(R, math.round(saturateCast(f32, (color.r)) * other));
+            var g: G = saturateCast(G, math.round(saturateCast(f32, (color.g)) * other));
+            var b: B = saturateCast(B, math.round(saturateCast(f32, (color.b)) * other));
 
             var result = Self {
+                .a = a,
                 .r = r,
                 .g = g,
                 .b = b,
-                .a = a,
             };
             if (DBG3) warn("colorScale: color={x} other={.5} r={}\n", color, other, result);
             return result;
@@ -117,27 +111,14 @@ pub fn Color(comptime T: type) type {
             comptime FmtError: type,
             output: fn (@typeOf(context), []const u8) FmtError!void,
         ) FmtError!void {
-            try formatColor(T, pSelf, fmt, context, FmtError, output);
+            try std.fmt.format(context, FmtError, output, "{{ ");
+            try formatOneColor(A, pSelf.a, fmt, context, FmtError, output, false);
+            try formatOneColor(R, pSelf.r, fmt, context, FmtError, output, false);
+            try formatOneColor(G, pSelf.g, fmt, context, FmtError, output, false);
+            try formatOneColor(B, pSelf.b, fmt, context, FmtError, output, true);
+            try std.fmt.format(context, FmtError, output, "}}");
         }
     };
-}
-
-
-/// Custom format routine
-fn formatColor(
-    comptime T: type,
-    pSelf: *const Color(T),
-    comptime fmt: []const u8,
-    context: var,
-    comptime FmtError: type,
-    output: fn (@typeOf(context), []const u8) FmtError!void,
-) FmtError!void {
-    try std.fmt.format(context, FmtError, output, "{{ ");
-    try formatOneColor(T, pSelf.a, fmt, context, FmtError, output, false);
-    try formatOneColor(T, pSelf.r, fmt, context, FmtError, output, false);
-    try formatOneColor(T, pSelf.g, fmt, context, FmtError, output, false);
-    try formatOneColor(T, pSelf.b, fmt, context, FmtError, output, true);
-    try std.fmt.format(context, FmtError, output, "}}");
 }
 
 fn formatOneColor(
@@ -159,32 +140,33 @@ fn formatOneColor(
 test "Color" {
     warn("\n");
 
-    var c = Color(f32).init(1, 2, 3, 4);
+    var c = Color(f32, f32, f32, f32).init(1, 2, 3, 4);
     assert(c.a == f32(1));
     assert(c.r == f32(2));
     assert(c.g == f32(3));
     assert(c.b == f32(4));
     assert(c.asU32Argb() == 0x01020304);
-    warn("c={}:{x}\n", &c, c.asU32Argb());
+    warn("c={}:{x8}\n", &c, c.asU32Argb());
 
-    var d = Color(i10).init(4, 3, 2, 1);
-    assert(d.a == i10(4));
-    assert(d.r == i10(3));
-    assert(d.g == i10(2));
-    assert(d.b == i10(1));
-    assert(d.asU32Argb() == 0x04030201);
-    warn("d={}:{x}\n", &d, d.asU32Argb());
+    var d = Color(u2, i10, i10, i10).init(3, -3, -2, 2);
+    assert(d.a == u2(3));
+    assert(d.r == i10(-3));
+    assert(d.g == i10(-2));
+    assert(d.b == i10(2));
+    // This is probably wrong, we should unbias the result!
+    assert(d.asU32Argb() == 0x03000002);
+    warn("d={}:{x8}\n", &d, d.asU32Argb());
 
-    var u = Color(u10).init(3, 1, 2, 4);
-    assert(u.a == u10(3));
-    assert(u.r == u10(1));
+    var u = Color(u2, u10, u10, u10).init(0, 3, 2, 1);
+    assert(u.a == u2(0));
+    assert(u.r == u10(3));
     assert(u.g == u10(2));
-    assert(u.b == u10(4));
-    assert(u.asU32Argb() == 0x03010204);
-    warn("u={}:{x}\n", &u, u.asU32Argb());
+    assert(u.b == u10(1));
+    assert(u.asU32Argb() == 0x00030201);
+    warn("u={}:{x8}\n", &u, u.asU32Argb());
 }
 
-pub const WinColor = Color(u8);
+pub const WinColor = Color(u8, u8, u8, u8);
 
 pub const Window = struct {
     const Self = @This();
