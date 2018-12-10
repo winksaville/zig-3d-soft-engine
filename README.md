@@ -14,6 +14,8 @@ and the code is [here](https://bitbucket.org/dandago/gigilabs/src/6d0e98732ca84d
 
 ## Dependencies
 
+Needs zig PR 1820: https://github.com/ziglang/zig/pull/1820 so `fn saturateCast` in zig-misc works
+
 * [Git Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules)
 * [zig](https://ziglang.org/)
 * [SDL2](https://www.libsdl.org/)
