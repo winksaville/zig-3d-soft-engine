@@ -441,7 +441,7 @@ pub const Window = struct {
     }
 
     /// Render the meshes into the window from the camera's point of view
-    pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
+    pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
         if (DBG) warn("\nview_matrix:\n{}", &view_matrix);
 
@@ -469,7 +469,7 @@ pub const Window = struct {
 
                 var color = ColorU8.init(0xff, 0, 0xff, 0xff);
 
-                switch (DBG_RenderMode) {
+                switch (renderMode) {
                     RenderMode.Points => {
                         const pa = pSelf.projectRetV2f32(va.coord, &transform_matrix);
                         const pb = pSelf.projectRetV2f32(vb.coord, &transform_matrix);
@@ -505,6 +505,10 @@ pub const Window = struct {
                 }
             }
         }
+    }
+
+    pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
+        renderUsingMode(pSelf, DBG_RenderMode, camera, meshes);
     }
 };
 
@@ -817,7 +821,7 @@ test "window.keyctrl.triangle" {
         warn("\n");
         computeVerticeNormalsDbg(if (DBG) true else false, meshes[0..]);
 
-        keyCtrlMeshes(&window, &meshes);
+        keyCtrlMeshes(&window, RenderMode.Points, &meshes);
     }
 }
 
@@ -840,7 +844,7 @@ test "window.keyctrl.cube" {
 
         var meshes = []Mesh{mesh};
 
-        keyCtrlMeshes(&window, &meshes);
+        keyCtrlMeshes(&window, RenderMode.Points, &meshes);
     }
 }
 
@@ -867,7 +871,7 @@ test "window.keyctrl.suzanne" {
         assert(mesh.faces.len == 968);
 
         var meshes = []Mesh{mesh};
-        keyCtrlMeshes(&window, &meshes);
+        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
     }
 }
 
@@ -938,7 +942,7 @@ fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
     return ie.EventResult.Continue;
 }
 
-fn keyCtrlMeshes(pWindow: *Window, meshes: []Mesh) void {
+fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void {
     var camera_position = V3f32.init(0, 0, 3);
     var camera_target = V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
@@ -966,7 +970,7 @@ fn keyCtrlMeshes(pWindow: *Window, meshes: []Mesh) void {
 
         if (DBG1) warn("camera={}\n", &camera.position);
         if (DBG1) warn("rotation={}\n", meshes[0].rotation);
-        pWindow.render(&camera, meshes);
+        pWindow.renderUsingMode(renderMode, &camera, meshes);
 
         pWindow.present();
 
