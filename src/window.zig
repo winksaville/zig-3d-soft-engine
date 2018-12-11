@@ -594,27 +594,27 @@ test "window.projectRetVertex" {
     var window = try Window.init(pAllocator, 640, 480, "testWindow");
     defer window.deinit();
 
-    var v1 = Vertex{ .coord = V3f32.init(0, 0, 0), .world_coord = undefined, .normal_coord = undefined };
+    var v1 = Vertex.init(0, 0, 0);
     var r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf / 2.0);
     assert(r.coord.y() == window.heightf / 2.0);
 
-    v1 = Vertex{ .coord = V3f32.init(-0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined };
+    v1 = Vertex.init(-0.5, 0.5, 0);
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == 0);
 
-    v1 = Vertex{ .coord = V3f32.init(0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined };
+    v1 = Vertex.init(0.5, -0.5, 0);
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex{ .coord = V3f32.init(-0.5, -0.5, 0), .world_coord = undefined, .normal_coord = undefined };
+    v1 = Vertex.init(-0.5, -0.5, 0);
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == 0);
     assert(r.coord.y() == window.heightf);
 
-    v1 = Vertex{ .coord = V3f32.init(0.5, 0.5, 0), .world_coord = undefined, .normal_coord = undefined };
+    v1 = Vertex.init(0.5, 0.5, 0);
     r = window.projectRetVertex(v1, &geo.m44f32_unit, &geo.m44f32_unit);
     assert(r.coord.x() == window.widthf);
     assert(r.coord.y() == 0);
@@ -738,15 +738,15 @@ test "window.render.cube" {
     mesh = try Mesh.init(pAllocator, "mesh1", 8, 12);
 
     // Unit cube about 0,0,0
-    mesh.vertices[0] = Vertex{ .coord = V3f32.init(-1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-    mesh.vertices[1] = Vertex{ .coord = V3f32.init(-1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-    mesh.vertices[2] = Vertex{ .coord = V3f32.init(1, -1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-    mesh.vertices[3] = Vertex{ .coord = V3f32.init(1, 1, 1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[0] = Vertex.init(-1, 1, 1);
+    mesh.vertices[1] = Vertex.init(-1, -1, 1);
+    mesh.vertices[2] = Vertex.init(1, -1, 1);
+    mesh.vertices[3] = Vertex.init(1, 1, 1);
 
-    mesh.vertices[4] = Vertex{ .coord = V3f32.init(-1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-    mesh.vertices[5] = Vertex{ .coord = V3f32.init(-1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-    mesh.vertices[6] = Vertex{ .coord = V3f32.init(1, -1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-    mesh.vertices[7] = Vertex{ .coord = V3f32.init(1, 1, -1), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+    mesh.vertices[4] = Vertex.init(-1, 1, -1);
+    mesh.vertices[5] = Vertex.init(-1, -1, -1);
+    mesh.vertices[6] = Vertex.init(1, -1, -1);
+    mesh.vertices[7] = Vertex.init(1, 1, -1);
 
     // 12 faces
     mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2 };
@@ -810,9 +810,9 @@ test "window.keyctrl.triangle" {
 
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
-        mesh.vertices[0] = Vertex{ .coord = V3f32.init(0, 1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-        mesh.vertices[1] = Vertex{ .coord = V3f32.init(-1, -1, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
-        mesh.vertices[2] = Vertex{ .coord = V3f32.init(0.5, -0.5, 0), .world_coord = V3f32.init(0, 0, 0), .normal_coord = V3f32.init(0, 0, 0) };
+        mesh.vertices[0] = Vertex.init(0, 1, 0);
+        mesh.vertices[1] = Vertex.init(-1, -1, 0);
+        mesh.vertices[2] = Vertex.init(0.5, -0.5, 0);
 
         mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2 };
 
