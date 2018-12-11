@@ -37,7 +37,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -664,28 +664,24 @@ test "window.world.to.screen" {
     world_to_camera_matrix.data[3][2] = 2;
 
     var world_vertexs = []V3f32{
-        V3f32.init(0, 1.0, 0),
-        V3f32.init(0, -1.0, 0),
-        V3f32.init(0, 1.0, 0.2),
-        V3f32.init(0, -1.0, -0.2),
+        V3f32.init(0, 1, 0),
+        V3f32.init(-1, -1, 0),
+        V3f32.init(0.5, -0.5, 0),
     };
     var expected_camera_vertexs = []V3f32{
-        V3f32.init(0, 1.0, 2),
-        V3f32.init(0, -1.0, 2.0),
-        V3f32.init(0, 1.0, 2.2),
-        V3f32.init(0, -1.0, 1.8),
+        V3f32.init(0, 1, 2),
+        V3f32.init(-1, -1, 2),
+        V3f32.init(0.5, -0.5, 2),
     };
     var expected_projected_vertexs = []V3f32{
         V3f32.init(0, 0.5, -1.0151515),
-        V3f32.init(0, -0.5, -1.0151515),
-        V3f32.init(0, 0.4545454, -1.0146923),
-        V3f32.init(0, -0.5555555, -1.0157126),
+        V3f32.init(-0.5, -0.5, -1.0151515),
+        V3f32.init(0.25, -0.25, -1.0151515),
     };
     var expected_screen_vertexs = [][2]u32{
         []u32{ 256, 128 },
-        []u32{ 256, 384 },
-        []u32{ 256, 139 },
-        []u32{ 256, 398 },
+        []u32{ 128, 384 },
+        []u32{ 320, 320 },
     };
 
     // Loop until end_time is reached but always loop once :)
