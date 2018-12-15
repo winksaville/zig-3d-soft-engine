@@ -444,15 +444,15 @@ pub const Window = struct {
     /// Render the meshes into the window from the camera's point of view
     pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix: geo.M44f32 = undefined;
-        view_matrix = geo.m44f32_unit;
-        view_matrix.data[3][2] = 3;
+        //view_matrix = geo.m44f32_unit;
+        //view_matrix.data[3][2] = 3;
         //view_matrix = geo.lookAtRh(&camera.position, &camera.target, &V3f32.unitY());
-        //view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
+        view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
         if (DBG) warn("\nview_matrix:\n{}", &view_matrix);
 
-        var fov: f32 = 90;
-        var znear: f32 = 0.01;
-        var zfar: f32 = 1.0;
+        var fov: f32 = 70;
+        var znear: f32 = 0.1;
+        var zfar: f32 = 1000.0;
         var perspective_matrix = geo.perspectiveM44(f32, fov, pSelf.widthf / pSelf.heightf, znear, zfar);
         if (DBG) warn("\nperspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &perspective_matrix);
 
