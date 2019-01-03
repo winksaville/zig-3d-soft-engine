@@ -157,7 +157,7 @@ pub const Window = struct {
             pixel.* = pSelf.bg_color.asU32Argb();
         }
         for (pSelf.zbuffer) |*elem| {
-            elem.* = misc.maxValue(@typeOf(elem.*));
+            elem.* = misc.minValue(@typeOf(elem.*));
         }
     }
 
@@ -165,9 +165,9 @@ pub const Window = struct {
         if (DBG_PutPixel) warn("putPixel: x={} y={} z={.3} c={}\n", x, y, z, &color);
         var index = (y * pSelf.width) + x;
 
-        // If z is behind or equal to (>=) a previouly written pixel just return.
+        // If z is behind or equal to (<=) a previouly written pixel just return.
         // NOTE: First value written, if they are equal, will be visible. Is this what we want?
-        if (z >= pSelf.zbuffer[index]) return;
+        if (z <= pSelf.zbuffer[index]) return;
         pSelf.zbuffer[index] = z;
 
         pSelf.pixels[index] = color.asU32Argb();
@@ -453,7 +453,7 @@ pub const Window = struct {
         var fov: f32 = 70;
         var znear: f32 = 0.1;
         var zfar: f32 = 1000.0;
-        var perspective_matrix = geo.perspectiveM44(f32, fov, pSelf.widthf / pSelf.heightf, znear, zfar);
+        var perspective_matrix = geo.perspectiveM44(f32, geo.rad(fov), pSelf.widthf / pSelf.heightf, znear, zfar);
         if (DBG) warn("\nperspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &perspective_matrix);
 
         for (meshes) |mesh| {
@@ -672,7 +672,7 @@ test "window.world.to.screen" {
     var window = try Window.init(pAllocator, width, height, "testWindow");
     defer window.deinit();
 
-    var view_to_perspective_matrix = geo.perspectiveM44(f32, fov, aspect, znear, zfar);
+    var view_to_perspective_matrix = geo.perspectiveM44(f32, geo.rad(fov), aspect, znear, zfar);
     if (DBG) warn("view_to_perspective_matrix=\n{}\n", view_to_perspective_matrix);
 
     var world_to_view_matrix: geo.M44f32 = undefined;
@@ -959,7 +959,7 @@ fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
 }
 
 fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void {
-    var camera_position = V3f32.init(0, 0, 3);
+    var camera_position = V3f32.init(0, 0, -5);
     var camera_target = V3f32.init(0, 0, 0);
     var camera = Camera.init(camera_position, camera_target);
 
@@ -1002,10 +1002,12 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
             gl.SDLK_ESCAPE => break :done,
             gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
             gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
+            //gl.SDLK_UP => meshes[0].position = rotate(ks.mod, meshes[0].position, f32(15)),
+            //gl.SDLK_DOWN => meshes[0].position = rotate(ks.mod, meshes[0].position, -f32(15)),
 
             // Not working well
-            //gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
-            //gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
+            gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
+            gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
             else => {},
         }
     }
