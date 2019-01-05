@@ -37,7 +37,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -365,7 +365,6 @@ pub const Window = struct {
 
     pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: ColorU8) void {
         if (DBG_DrawTriangle) warn("drawTriangle:\n v1={}\n v2={}\n v3={}\n", v1, v2, v3);
-        //_ = waitForKey("drawTriangle");
 
         // Sort the points finding top, mid, bottom.
         var t = v1; // Top
@@ -909,7 +908,6 @@ test "window.keyctrl.pyramid" {
 
         var meshes = []Mesh{mesh};
         keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
-        //keyCtrlMeshes(&window, RenderMode.Points, &meshes);
     }
 }
 
