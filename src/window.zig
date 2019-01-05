@@ -41,14 +41,19 @@ const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
+const DBG_RenderUsingMode = false;
+const DBG_RenderUsingModeInner = false;
 const DBG_PutPixel = false;
+const DBG_Rotate = false;
+const DBG_Translate = false;
+const DBG_DrawTriangle = false;
 
 const RenderMode = enum {
     Points,
     Lines,
     Triangles,
 };
-const DBG_RenderMode = RenderMode.Triangles;
+const DBG_RenderMode = RenderMode.Points; //Triangles;
 
 const ScanLineData = struct {
     pub y: isize,
@@ -61,6 +66,8 @@ const ScanLineData = struct {
 pub const Window = struct {
     const Self = @This();
 
+    const ZbufferType = f32;
+
     pAllocator: *Allocator,
     width: usize,
     widthci: c_int,
@@ -71,7 +78,7 @@ pub const Window = struct {
     name: []const u8,
     bg_color: ColorU8,
     pixels: []u32,
-    zbuffer: []f32,
+    zbuffer: []ZbufferType,
     sdl_window: *gl.SDL_Window,
     sdl_renderer: *gl.SDL_Renderer,
     sdl_texture: *gl.SDL_Texture,
@@ -151,13 +158,17 @@ pub const Window = struct {
         pSelf.bg_color = color;
     }
 
+    pub fn clearZbufferValue(pSelf: *Self) ZbufferType {
+        return misc.maxValue(ZbufferType);
+    }
+
     pub fn clear(pSelf: *Self) void {
         // Init Pixel buffer
         for (pSelf.pixels) |*pixel| {
             pixel.* = pSelf.bg_color.asU32Argb();
         }
         for (pSelf.zbuffer) |*elem| {
-            elem.* = misc.minValue(@typeOf(elem.*));
+            elem.* = pSelf.clearZbufferValue();
         }
     }
 
@@ -165,9 +176,10 @@ pub const Window = struct {
         if (DBG_PutPixel) warn("putPixel: x={} y={} z={.3} c={}\n", x, y, z, &color);
         var index = (y * pSelf.width) + x;
 
-        // If z is behind or equal to (<=) a previouly written pixel just return.
+        // +Z is towards screen so (-Z is away from screen) so if z is behind
+        // or equal to (>=) a previouly written pixel just return.
         // NOTE: First value written, if they are equal, will be visible. Is this what we want?
-        if (z <= pSelf.zbuffer[index]) return;
+        if (z >= pSelf.zbuffer[index]) return;
         pSelf.zbuffer[index] = z;
 
         pSelf.pixels[index] = color.asU32Argb();
@@ -204,19 +216,19 @@ pub const Window = struct {
             var uy = @bitCast(usize, y);
             if ((ux < pSelf.width) and (uy < pSelf.height)) {
                 //if (DBG) warn("drawPointXy: putting x={} y={} c={}\n", ux, uy, &color);
-                pSelf.putPixel(ux, uy, -math.f32_max, color);
+                pSelf.putPixel(ux, uy, -pSelf.clearZbufferValue(), color);
             }
         }
     }
 
     /// Draw a point defined by x, y in screen coordinates clipping it if its outside the screen
     pub fn drawPointXyz(pSelf: *Self, x: isize, y: isize, z: f32, color: ColorU8) void {
-        //if (DBG) warn("drawPointXy: x={} y={} z={.3} c={}\n", x, y, &color);
+        //if (DBG) warn("drawPointXyz: x={} y={} z={.3} c={}\n", x, y, &color);
         if ((x >= 0) and (y >= 0)) {
             var ux = @bitCast(usize, x);
             var uy = @bitCast(usize, y);
             if ((ux < pSelf.width) and (uy < pSelf.height)) {
-                //if (DBG) warn("drawPointXy: putting x={} y={} c={}\n", ux, uy, &color);
+                //if (DBG) warn("drawPointXyz: putting x={} y={} c={}\n", ux, uy, &color);
                 pSelf.putPixel(ux, uy, z, color);
             }
         }
@@ -352,6 +364,9 @@ pub const Window = struct {
     }
 
     pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: ColorU8) void {
+        if (DBG_DrawTriangle) warn("drawTriangle:\n v1={}\n v2={}\n v3={}\n", v1, v2, v3);
+        //_ = waitForKey("drawTriangle");
+
         // Sort the points finding top, mid, bottom.
         var t = v1; // Top
         var m = v2; // Mid
@@ -369,8 +384,9 @@ pub const Window = struct {
         if (m.coord.y() > b.coord.y()) {
             mem.swap(Vertex, &m, &b);
         }
+        if (DBG_DrawTriangle) warn("drawTriangle:\n t={}\n m={}\n b={}\n", t, m, b);
 
-        var light_pos = V3f32.init(0, 10, 10);
+        var light_pos = V3f32.init(0, 10, -10);
 
         var t_ndotl = computeNormalDotLight(t.world_coord, t.normal_coord, light_pos);
         var m_ndotl = computeNormalDotLight(m.world_coord, m.normal_coord, light_pos);
@@ -385,6 +401,8 @@ pub const Window = struct {
 
         // Two cases, 1) triangles with mid on the right
         if (slope_t_m > slope_t_b) {
+            if (DBG_DrawTriangle) warn("drawTriangle: mid on RIGHT slope_t_m:{} > slope_t_b:{}\n", slope_t_m, slope_t_b);
+
             // Triangles with mid on the right
             // t
             // |\
@@ -412,6 +430,8 @@ pub const Window = struct {
                 }
             }
         } else {
+            if (DBG_DrawTriangle) warn("drawTriangle: mid on LEFT  slope_t_m:{} <= slope_t_b:{}\n", slope_t_m, slope_t_b);
+
             // Triangles with mid on the left
             //     t
             //    /|
@@ -439,40 +459,40 @@ pub const Window = struct {
                 }
             }
         }
+        //pSelf.present();
     }
 
     /// Render the meshes into the window from the camera's point of view
     pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, meshes: []const Mesh) void {
         var view_matrix: geo.M44f32 = undefined;
-        //view_matrix = geo.m44f32_unit;
-        //view_matrix.data[3][2] = 3;
-        //view_matrix = geo.lookAtRh(&camera.position, &camera.target, &V3f32.unitY());
         view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
-        if (DBG) warn("\nview_matrix:\n{}", &view_matrix);
+        if (DBG_RenderUsingMode) warn("view_matrix:\n{}\n", &view_matrix);
 
         var fov: f32 = 70;
         var znear: f32 = 0.1;
         var zfar: f32 = 1000.0;
         var perspective_matrix = geo.perspectiveM44(f32, geo.rad(fov), pSelf.widthf / pSelf.heightf, znear, zfar);
-        if (DBG) warn("\nperspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}", fov, znear, zfar, &perspective_matrix);
+        if (DBG_RenderUsingMode) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}\n", fov, znear, zfar, &perspective_matrix);
 
         for (meshes) |mesh| {
-            var rotation_matrix = geo.rotationYawPitchRollV3f32(mesh.rotation);
-            if (DBG) warn("\nrotation_matrix:\n{}", &rotation_matrix);
+            var rotation_matrix = geo.rotateCwPitchYawRollV3f32(mesh.rotation);
+            if (DBG_RenderUsingMode) warn("rotation_matrix:\n{}\n", &rotation_matrix);
             var translation_matrix = geo.translationV3f32(mesh.position);
-            if (DBG) warn("\ntranslation_matrix:\n{}", &translation_matrix);
+            if (DBG_RenderUsingMode) warn("translation_matrix:\n{}\n", &translation_matrix);
             var world_matrix = geo.mulM44f32(&translation_matrix, &rotation_matrix);
-            if (DBG) warn("\nworld_matrix:\n{}", &world_matrix);
+            if (DBG_RenderUsingMode) warn("world_matrix:\n{}\n", &world_matrix);
 
             var world_to_view_matrix = geo.mulM44f32(&world_matrix, &view_matrix);
             var transform_matrix = geo.mulM44f32(&world_to_view_matrix, &perspective_matrix);
-            if (DBG) warn("\ntransform_matrix:\n{}", &transform_matrix);
+            if (DBG_RenderUsingMode) warn("transform_matrix:\n{}\n", &transform_matrix);
 
+
+            if (DBG_RenderUsingMode) warn("\n");
             for (mesh.faces) |face, i| {
                 const va = mesh.vertices[face.a];
                 const vb = mesh.vertices[face.b];
                 const vc = mesh.vertices[face.c];
-                if (DBG3) warn("\nva={} vb={} vc={}\n", va.coord, vb.coord, vc.coord);
+                if (DBG_RenderUsingModeInner) warn("va={} vb={} vc={}\n", va.coord, vb.coord, vc.coord);
 
                 var color = ColorU8.init(0xff, 0, 0xff, 0xff);
 
@@ -481,7 +501,7 @@ pub const Window = struct {
                         const pa = pSelf.projectRetV2f32(va.coord, &transform_matrix);
                         const pb = pSelf.projectRetV2f32(vb.coord, &transform_matrix);
                         const pc = pSelf.projectRetV2f32(vc.coord, &transform_matrix);
-                        if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
+                        if (DBG_RenderUsingModeInner) warn("pa={} pb={} pc={}\n", pa, pb, pc);
 
                         pSelf.drawPointV2f32(pa, color);
                         pSelf.drawPointV2f32(pb, color);
@@ -491,7 +511,7 @@ pub const Window = struct {
                         const pa = pSelf.projectRetV2f32(va.coord, &transform_matrix);
                         const pb = pSelf.projectRetV2f32(vb.coord, &transform_matrix);
                         const pc = pSelf.projectRetV2f32(vc.coord, &transform_matrix);
-                        if (DBG3) warn("pa={} pb={} pc={}\n", pa, pb, pc);
+                        if (DBG_RenderUsingModeInner) warn("pa={} pb={} pc={}\n", pa, pb, pc);
 
                         pSelf.drawBline(pa, pb, color);
                         pSelf.drawBline(pb, pc, color);
@@ -502,7 +522,7 @@ pub const Window = struct {
                         const tva = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
                         const tvb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
                         const tvc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
-                        if (DBG3) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
+                        if (DBG_RenderUsingModeInner) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
 
                         var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
                         var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
@@ -786,7 +806,7 @@ test "window.render.cube" {
 
     var movement = V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
-    var camera_position = V3f32.init(0, 0, 3);
+    var camera_position = V3f32.init(0, 0, -5);
     var camera_target = V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
 
@@ -811,6 +831,7 @@ test "window.render.cube" {
     }
 }
 
+
 test "window.keyctrl.triangle" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
@@ -818,7 +839,7 @@ test "window.keyctrl.triangle" {
         defer arena_allocator.deinit();
         var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 800, 600, "testWindow");
+        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
         defer window.deinit();
 
         // Black background color
@@ -848,7 +869,7 @@ test "window.keyctrl.cube" {
         defer arena_allocator.deinit();
         var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 640, 480, "render.cube");
+        var window = try Window.init(pAllocator, 1000, 1000, "render.cube");
         defer window.deinit();
 
         var file_name = "modules/3d-test-resources/cube.babylon";
@@ -864,6 +885,34 @@ test "window.keyctrl.cube" {
     }
 }
 
+test "window.keyctrl.pyramid" {
+    if (DBG) {
+        var direct_allocator = std.heap.DirectAllocator.init();
+        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+        defer arena_allocator.deinit();
+        var pAllocator = &arena_allocator.allocator;
+
+        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+        defer window.deinit();
+
+        // Black background color
+        window.setBgColor(ColorU8.Black);
+
+        var file_name = "modules/3d-test-resources/pyramid.babylon";
+        var tree = try parseJsonFile(pAllocator, file_name);
+        defer tree.deinit();
+
+        var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
+        assert(std.mem.eql(u8, mesh.name, "pyramid"));
+        //assert(mesh.vertices.len == 507);
+        //assert(mesh.faces.len == 968);
+
+        var meshes = []Mesh{mesh};
+        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
+        //keyCtrlMeshes(&window, RenderMode.Points, &meshes);
+    }
+}
+
 test "window.keyctrl.suzanne" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
@@ -871,7 +920,7 @@ test "window.keyctrl.suzanne" {
         defer arena_allocator.deinit();
         var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 800, 600, "testWindow");
+        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
         defer window.deinit();
 
         // Black background color
@@ -898,44 +947,44 @@ const KeyState = struct {
     ei: ie.EventInterface,
 };
 
-fn rotate(mod: u16, pos: V3f32, val: f32) V3f32 {
+fn rotate(mod: u16, angles: V3f32, val: f32) V3f32 {
     var r = geo.rad(val);
-    if (DBG) warn("rotate: mod={x} pos={} rad(val)={}\n", mod, pos, r);
-    var new_pos = pos;
+    if (DBG_Rotate) warn("rotate: mod={x} angles={} rad(val)={}\n", mod, angles, r);
+    var new_angles = angles;
     if ((mod & gl.KMOD_LCTRL) != 0) {
-        new_pos = new_pos.add(&V3f32.init(r, 0, 0));
-        if (DBG) warn("rotate: add X\n");
+        new_angles = new_angles.add(&V3f32.init(r, 0, 0));
+        if (DBG_Rotate) warn("rotate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
-        new_pos = new_pos.add(&V3f32.init(0, r, 0));
-        if (DBG) warn("rotate: add Y\n");
+        new_angles = new_angles.add(&V3f32.init(0, r, 0));
+        if (DBG_Rotate) warn("rotate: add Y\n");
     }
     if ((mod & gl.KMOD_RCTRL) != 0) {
-        new_pos = new_pos.add(&V3f32.init(0, 0, r));
-        if (DBG) warn("rotate: add Z\n");
+        new_angles = new_angles.add(&V3f32.init(0, 0, r));
+        if (DBG_Rotate) warn("rotate: add Z\n");
     }
-    if (DBG and !pos.approxEql(&new_pos, 4)) {
-        warn("rotate: new_pos={}\n", new_pos);
+    if (DBG_Rotate and !angles.approxEql(&new_angles, 4)) {
+        warn("rotate: new_angles={}\n", new_angles);
     }
-    return new_pos;
+    return new_angles;
 }
 
 fn translate(mod: u16, pos: V3f32, val: f32) V3f32 {
-    if (DBG) warn("translate: pos={}\n", pos);
+    if (DBG_Translate) warn("translate: pos={}\n", pos);
     var new_pos = pos;
     if ((mod & gl.KMOD_LCTRL) != 0) {
         new_pos = pos.add(&V3f32.init(val, 0, 0));
-        if (DBG) warn("translate: add X\n");
+        if (DBG_Translate) warn("translate: add X\n");
     }
     if ((mod & gl.KMOD_LSHIFT) != 0) {
         new_pos = pos.add(&V3f32.init(0, val, 0));
-        if (DBG) warn("translate: add Y\n");
+        if (DBG_Translate) warn("translate: add Y\n");
     }
-    if ((mod & gl.KMOD_LALT) != 0) {
+    if ((mod & gl.KMOD_RCTRL) != 0) {
         new_pos = pos.add(&V3f32.init(0, 0, val));
-        if (DBG) warn("translate: add Z\n");
+        if (DBG_Translate) warn("translate: add Z\n");
     }
-    if (DBG and !pos.eql(&new_pos)) {
+    if (DBG_Translate and !pos.eql(&new_pos)) {
         warn("translate: new_pos={}\n", new_pos);
     }
     return new_pos;
@@ -958,22 +1007,41 @@ fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
     return ie.EventResult.Continue;
 }
 
+var g_ks = KeyState{
+    .new_key = false,
+    .code = undefined,
+    .mod = undefined,
+    .ei = ie.EventInterface{
+        .event = undefined,
+        .handleKeyEvent = handleKeyEvent,
+        .handleMouseEvent = ignoreEvent,
+        .handleOtherEvent = ignoreEvent,
+    },
+};
+
+/// Wait for a key
+fn waitForKey(s: []const u8) *KeyState {
+    if (DBG) warn("{} waitForKey: ...", s);
+
+    g_ks.new_key = false;
+    while (g_ks.new_key == false) {
+        _ = ie.pollInputEvent(&g_ks, &g_ks.ei);
+    }
+
+    if (DBG) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
+    return &g_ks;
+}
+
 fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void {
+    const FocusType = enum {
+        Camera,
+        Monkey,
+    };
+    var focus: FocusType = FocusType.Camera;
+
     var camera_position = V3f32.init(0, 0, -5);
     var camera_target = V3f32.init(0, 0, 0);
     var camera = Camera.init(camera_position, camera_target);
-
-    var ks = KeyState{
-        .new_key = false,
-        .code = undefined,
-        .mod = undefined,
-        .ei = ie.EventInterface{
-            .event = undefined,
-            .handleKeyEvent = handleKeyEvent,
-            .handleMouseEvent = ignoreEvent,
-            .handleOtherEvent = ignoreEvent,
-        },
-    };
 
     done: while (true) {
         // Update the display
@@ -991,24 +1059,34 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         pWindow.present();
 
         // Wait for a key
-        ks.new_key = false;
-        noEvents: while (ks.new_key == false) {
-            _ = ie.pollInputEvent(&ks, &ks.ei);
-        }
+        var ks = waitForKey("keyCtrlMeshes");
 
         // Process the key
-        if (DBG) warn("ks.mod={}\n", ks.mod);
         switch (ks.code) {
             gl.SDLK_ESCAPE => break :done,
-            gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
-            gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
-            //gl.SDLK_UP => meshes[0].position = rotate(ks.mod, meshes[0].position, f32(15)),
-            //gl.SDLK_DOWN => meshes[0].position = rotate(ks.mod, meshes[0].position, -f32(15)),
-
-            // Not working well
-            gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(10)),
-            gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(10)),
+            gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
+            gl.SDLK_m => { focus = FocusType.Monkey; if (DBG) warn("focus = Monkey"); },
             else => {},
+        }
+
+        if (focus == FocusType.Monkey) {
+            switch (ks.code) {
+                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(10)),
+                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(10)),
+                gl.SDLK_UP => meshes[0].position = translate(ks.mod, meshes[0].position, f32(1)),
+                gl.SDLK_DOWN => meshes[0].position = translate(ks.mod, meshes[0].position, -f32(1)),
+                else => {},
+            }
+        }
+            
+        if (focus == FocusType.Camera) {
+            switch (ks.code) {
+                gl.SDLK_LEFT => camera.target = rotate(ks.mod, camera.target, f32(10)),
+                gl.SDLK_RIGHT => camera.target = rotate(ks.mod, camera.target, -f32(10)),
+                gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(1)),
+                gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(1)),
+                else => {},
+            }
         }
     }
 }
