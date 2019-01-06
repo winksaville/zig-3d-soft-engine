@@ -24,7 +24,6 @@ const M44f32 = geo.M44f32;
 
 const parseJsonFile = @import("../modules/zig-json/parse_json_file.zig").parseJsonFile;
 const createMeshFromBabylonJson = @import("create_mesh_from_babylon_json.zig").createMeshFromBabylonJson;
-//const createMeshFromBabylonJson = @import("../modules/zig-json/create_mesh_from_babylon_json.zig").createMeshFromBabylonJson;
 
 const Camera = @import("camera.zig").Camera;
 
@@ -37,7 +36,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -53,7 +52,7 @@ const RenderMode = enum {
     Lines,
     Triangles,
 };
-const DBG_RenderMode = RenderMode.Points; //Triangles;
+const DBG_RenderMode = RenderMode.Points;
 
 const ScanLineData = struct {
     pub y: isize,
@@ -712,9 +711,9 @@ test "window.world.to.screen" {
         V3f32.init(0.5, -0.5, 2),
     };
     var expected_projected_vertexs = []V3f32{
-        V3f32.init(0, 0.5, -1.0151515),
-        V3f32.init(-0.5, -0.5, -1.0151515),
-        V3f32.init(0.25, -0.25, -1.0151515),
+        V3f32.init(0, 0.5, 1.00505),
+        V3f32.init(-0.5, -0.5, 1.00505),
+        V3f32.init(0.25, -0.25, 1.00505),
     };
     var expected_screen_vertexs = [][2]u32{
         []u32{ 256, 128 },
@@ -736,17 +735,17 @@ test "window.world.to.screen" {
 
             var view_vert = world_vert.transform(&world_to_view_matrix);
             if (DBG) warn("view_vert      = {}\n", view_vert);
-            //assert(view_vert.approxEql(&expected_view_vertexs[i], 6));
+            assert(view_vert.approxEql(&expected_view_vertexs[i], 5));
 
             var projected_vert = view_vert.transform(&view_to_perspective_matrix);
             if (DBG) warn("projected_vert = {}\n", projected_vert);
-            //assert(projected_vert.approxEql(&expected_projected_vertexs[i], 6));
+            assert(projected_vert.approxEql(&expected_projected_vertexs[i], 5));
 
             var point = window.projectRetV2f32(projected_vert, &geo.m44f32_unit);
 
             var color = ColorU8.init(0xff, 0xff, 00, 0xff);
             window.drawPointV2f32(point, color);
-            //assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == color.asU32Argb());
+            assert(window.getPixel(expected_screen_vertexs[i][0], expected_screen_vertexs[i][1]) == color.asU32Argb());
         }
 
         var center = V2f32.init(window.widthf / 2, window.heightf / 2);
@@ -903,8 +902,6 @@ test "window.keyctrl.pyramid" {
 
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
-        //assert(mesh.vertices.len == 507);
-        //assert(mesh.faces.len == 968);
 
         var meshes = []Mesh{mesh};
         keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
@@ -1033,7 +1030,7 @@ fn waitForKey(s: []const u8) *KeyState {
 fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void {
     const FocusType = enum {
         Camera,
-        Monkey,
+        Object,
     };
     var focus: FocusType = FocusType.Camera;
 
@@ -1060,14 +1057,17 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         var ks = waitForKey("keyCtrlMeshes");
 
         // Process the key
+
+        // Check if changing focus
         switch (ks.code) {
             gl.SDLK_ESCAPE => break :done,
             gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
-            gl.SDLK_m => { focus = FocusType.Monkey; if (DBG) warn("focus = Monkey"); },
+            gl.SDLK_o => { focus = FocusType.Object; if (DBG) warn("focus = Object"); },
             else => {},
         }
 
-        if (focus == FocusType.Monkey) {
+        if (focus == FocusType.Object) {
+            // Process for Object
             switch (ks.code) {
                 gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(10)),
                 gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(10)),
@@ -1078,6 +1078,7 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         }
             
         if (focus == FocusType.Camera) {
+            // Process for Camera
             switch (ks.code) {
                 gl.SDLK_LEFT => camera.target = rotate(ks.mod, camera.target, f32(10)),
                 gl.SDLK_RIGHT => camera.target = rotate(ks.mod, camera.target, -f32(10)),
