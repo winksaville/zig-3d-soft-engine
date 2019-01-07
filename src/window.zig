@@ -36,16 +36,19 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
 const DBG_RenderUsingMode = false;
 const DBG_RenderUsingModeInner = false;
+const DBG_RenderUsingModeWaitForKey = false;
 const DBG_PutPixel = false;
 const DBG_Rotate = false;
 const DBG_Translate = false;
 const DBG_DrawTriangle = false;
+const DBG_DrawTriangleInner = false;
+const DBG_ProcessScanLine = false;
 
 const RenderMode = enum {
     Points,
@@ -353,6 +356,7 @@ pub const Window = struct {
 
         // Draw a horzitional line between start and end x
         var x: isize = sx;
+        if (DBG_ProcessScanLine) warn("processScanLine: sx={} ex={} cnt={}\n", sx, ex, ex - sx);
         while (x < ex) : (x += 1) {
             var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex - sx));
             var z = interpolate(sz, ez, gradient);
@@ -392,14 +396,13 @@ pub const Window = struct {
 
         var scanLineData: ScanLineData = undefined;
 
-        // Compute the inverse slopes
-        // http://en.wikipedia.org/wiki/Slope
-        var slope_t_m: f32 = if ((m.coord.y() - t.coord.y()) > 0) (m.coord.x() - t.coord.x()) / (m.coord.y() - t.coord.y()) else 0;
-        var slope_t_b: f32 = if ((b.coord.y() - t.coord.y()) > 0) (b.coord.x() - t.coord.x()) / (b.coord.y() - t.coord.y()) else 0;
+        // Convert the bottom.coord.y and mid.coord.y to integers
+        var b_y = @floatToInt(isize, math.trunc(b.coord.y()));
+        var m_y = @floatToInt(isize, math.trunc(m.coord.y()));
 
         // Two cases, 1) triangles with mid on the right
-        if (slope_t_m > slope_t_b) {
-            if (DBG_DrawTriangle) warn("drawTriangle: mid on RIGHT slope_t_m:{} > slope_t_b:{}\n", slope_t_m, slope_t_b);
+        if (m.coord.x() >= t.coord.x()) {
+            if (DBG_DrawTriangle) warn("drawTriangle: mid RIGHT m.coord.x={.5} >= t.coord.x:{}\n", m.coord.x(), t.coord.y());
 
             // Triangles with mid on the right
             // t
@@ -412,14 +415,16 @@ pub const Window = struct {
             // |/
             // b
             scanLineData.y = @floatToInt(isize, math.trunc(t.coord.y()));
-            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.coord.y()))) : (scanLineData.y += 1) {
-                if (scanLineData.y < @floatToInt(isize, math.trunc(m.coord.y()))) {
+            while (scanLineData.y <= b_y) : (scanLineData.y += 1) {
+                if (scanLineData.y < m_y) {
+                    if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} < m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = t_ndotl;
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = m_ndotl;
                     pSelf.processScanLine(scanLineData, t, b, t, m, color);
                 } else {
+                    if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} >= m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = t_ndotl;
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = m_ndotl;
@@ -428,7 +433,7 @@ pub const Window = struct {
                 }
             }
         } else {
-            if (DBG_DrawTriangle) warn("drawTriangle: mid on LEFT  slope_t_m:{} <= slope_t_b:{}\n", slope_t_m, slope_t_b);
+            if (DBG_DrawTriangle) warn("drawTriangle: mid LEFT m.coord.x={.5} < t.coord.x:{}\n", m.coord.x(), t.coord.y());
 
             // Triangles with mid on the left
             //     t
@@ -441,14 +446,16 @@ pub const Window = struct {
             //    \|
             //     b
             scanLineData.y = @floatToInt(isize, math.trunc(t.coord.y()));
-            while (scanLineData.y <= @floatToInt(isize, math.trunc(b.coord.y()))) : (scanLineData.y += 1) {
+            while (scanLineData.y <= b_y) : (scanLineData.y += 1) {
                 if (scanLineData.y < @floatToInt(isize, math.trunc(m.coord.y()))) {
+                    if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} < m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = t_ndotl;
                     scanLineData.ndotlb = m_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = b_ndotl;
                     pSelf.processScanLine(scanLineData, t, m, t, b, color);
                 } else {
+                    if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} >= m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = m_ndotl;
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = t_ndotl;
@@ -457,7 +464,6 @@ pub const Window = struct {
                 }
             }
         }
-        //pSelf.present();
     }
 
     /// Render the meshes into the window from the camera's point of view
@@ -527,6 +533,10 @@ pub const Window = struct {
                         color = ColorU8.init(colorU8, colorU8, colorU8, colorU8);
                         pSelf.drawTriangle(tva, tvb, tvc, color);
                     },
+                }
+                if (DBG_RenderUsingModeWaitForKey) {
+                    pSelf.present();
+                    _ = waitForKey("dt");
                 }
             }
         }
@@ -1024,6 +1034,9 @@ fn waitForKey(s: []const u8) *KeyState {
     }
 
     if (DBG) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
+
+    if (g_ks.code == gl.SDLK_ESCAPE) std.os.exit(1);
+
     return &g_ks;
 }
 
@@ -1032,7 +1045,7 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         Camera,
         Object,
     };
-    var focus: FocusType = FocusType.Camera;
+    var focus = FocusType.Object;
 
     var camera_position = V3f32.init(0, 0, -5);
     var camera_target = V3f32.init(0, 0, 0);
@@ -1044,6 +1057,9 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
 
         var center = V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
         pWindow.drawPointV2f32(center, ColorU8.White);
+        if (DBG_RenderUsingModeWaitForKey) {
+            pWindow.present();
+        }
 
         if (DBG or DBG1 or DBG2) warn("\n");
 
@@ -1060,7 +1076,6 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
 
         // Check if changing focus
         switch (ks.code) {
-            gl.SDLK_ESCAPE => break :done,
             gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
             gl.SDLK_o => { focus = FocusType.Object; if (DBG) warn("focus = Object"); },
             else => {},
@@ -1069,8 +1084,8 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         if (focus == FocusType.Object) {
             // Process for Object
             switch (ks.code) {
-                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(10)),
-                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(10)),
+                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
+                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
                 gl.SDLK_UP => meshes[0].position = translate(ks.mod, meshes[0].position, f32(1)),
                 gl.SDLK_DOWN => meshes[0].position = translate(ks.mod, meshes[0].position, -f32(1)),
                 else => {},
@@ -1080,8 +1095,8 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         if (focus == FocusType.Camera) {
             // Process for Camera
             switch (ks.code) {
-                gl.SDLK_LEFT => camera.target = rotate(ks.mod, camera.target, f32(10)),
-                gl.SDLK_RIGHT => camera.target = rotate(ks.mod, camera.target, -f32(10)),
+                gl.SDLK_LEFT => camera.target = rotate(ks.mod, camera.target, f32(15)),
+                gl.SDLK_RIGHT => camera.target = rotate(ks.mod, camera.target, -f32(15)),
                 gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(1)),
                 gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(1)),
                 else => {},
