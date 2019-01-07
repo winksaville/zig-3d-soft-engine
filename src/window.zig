@@ -36,7 +36,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -378,13 +378,11 @@ pub const Window = struct {
         if (t.coord.y() > m.coord.y()) {
             mem.swap(Vertex, &t, &m);
         }
-        if (t.coord.y() > b.coord.y()) {
-            mem.swap(Vertex, &t, &b);
-        }
-
-        // Now switch mid and bottom if they are out of order
         if (m.coord.y() > b.coord.y()) {
             mem.swap(Vertex, &m, &b);
+        }
+        if (t.coord.y() > m.coord.y()) {
+            mem.swap(Vertex, &t, &m);
         }
         if (DBG_DrawTriangle) warn("drawTriangle:\n t={}\n m={}\n b={}\n", t, m, b);
 
@@ -396,13 +394,18 @@ pub const Window = struct {
 
         var scanLineData: ScanLineData = undefined;
 
+        // Compute the inverse slopes
+        // http://en.wikipedia.org/wiki/Slope
+        var slope_t_m: f32 = if ((m.coord.y() - t.coord.y()) > 0) (m.coord.x() - t.coord.x()) / (m.coord.y() - t.coord.y()) else 0;
+        var slope_t_b: f32 = if ((b.coord.y() - t.coord.y()) > 0) (b.coord.x() - t.coord.x()) / (b.coord.y() - t.coord.y()) else 0;
+
         // Convert the bottom.coord.y and mid.coord.y to integers
         var b_y = @floatToInt(isize, math.trunc(b.coord.y()));
         var m_y = @floatToInt(isize, math.trunc(m.coord.y()));
 
         // Two cases, 1) triangles with mid on the right
-        if (m.coord.x() >= t.coord.x()) {
-            if (DBG_DrawTriangle) warn("drawTriangle: mid RIGHT m.coord.x={.5} >= t.coord.x:{}\n", m.coord.x(), t.coord.y());
+        if (slope_t_m > slope_t_b) {
+            if (DBG_DrawTriangle) warn("drawTriangle: mid RIGHT slope_t_m:{.5} > slope_t_b:{.5}\n", slope_t_m, slope_t_b);
 
             // Triangles with mid on the right
             // t
@@ -433,7 +436,7 @@ pub const Window = struct {
                 }
             }
         } else {
-            if (DBG_DrawTriangle) warn("drawTriangle: mid LEFT m.coord.x={.5} < t.coord.x:{}\n", m.coord.x(), t.coord.y());
+            if (DBG_DrawTriangle) warn("drawTriangle: mid LEFT  slope_t_m:{.5} <= slope_t_b:{.5}\n", slope_t_m, slope_t_b);
 
             // Triangles with mid on the left
             //     t
@@ -918,6 +921,31 @@ test "window.keyctrl.pyramid" {
     }
 }
 
+test "window.keyctrl.tilted.pyramid" {
+    if (DBG) {
+        var direct_allocator = std.heap.DirectAllocator.init();
+        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+        defer arena_allocator.deinit();
+        var pAllocator = &arena_allocator.allocator;
+
+        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+        defer window.deinit();
+
+        // Black background color
+        window.setBgColor(ColorU8.Black);
+
+        var file_name = "modules/3d-test-resources/tilted-pyramid.babylon";
+        var tree = try parseJsonFile(pAllocator, file_name);
+        defer tree.deinit();
+
+        var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
+        assert(std.mem.eql(u8, mesh.name, "pyramid"));
+
+        var meshes = []Mesh{mesh};
+        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
+    }
+}
+
 test "window.keyctrl.suzanne" {
     if (DBG) {
         var direct_allocator = std.heap.DirectAllocator.init();
@@ -1026,14 +1054,14 @@ var g_ks = KeyState{
 
 /// Wait for a key
 fn waitForKey(s: []const u8) *KeyState {
-    if (DBG) warn("{} waitForKey: ...", s);
+    if (DBG_RenderUsingModeWaitForKey) warn("{} waitForKey: ...", s);
 
     g_ks.new_key = false;
     while (g_ks.new_key == false) {
         _ = ie.pollInputEvent(&g_ks, &g_ks.ei);
     }
 
-    if (DBG) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
+    if (DBG_RenderUsingModeWaitForKey) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
 
     if (g_ks.code == gl.SDLK_ESCAPE) std.os.exit(1);
 
@@ -1060,8 +1088,6 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         if (DBG_RenderUsingModeWaitForKey) {
             pWindow.present();
         }
-
-        if (DBG or DBG1 or DBG2) warn("\n");
 
         if (DBG1) warn("camera={}\n", &camera.position);
         if (DBG1) warn("rotation={}\n", meshes[0].rotation);
