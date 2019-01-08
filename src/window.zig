@@ -394,18 +394,24 @@ pub const Window = struct {
 
         var scanLineData: ScanLineData = undefined;
 
-        // Compute the inverse slopes
-        // http://en.wikipedia.org/wiki/Slope
-        var slope_t_m: f32 = if ((m.coord.y() - t.coord.y()) > 0) (m.coord.x() - t.coord.x()) / (m.coord.y() - t.coord.y()) else 0;
-        var slope_t_b: f32 = if ((b.coord.y() - t.coord.y()) > 0) (b.coord.x() - t.coord.x()) / (b.coord.y() - t.coord.y()) else 0;
-
         // Convert the bottom.coord.y and mid.coord.y to integers
         var b_y = @floatToInt(isize, math.trunc(b.coord.y()));
         var m_y = @floatToInt(isize, math.trunc(m.coord.y()));
 
+        // Create top to mid line and top to bottom lines.
+        // We then take the cross product of these lines and
+        // if the result is positive then the mid is on the right
+        // otherwise mid is on the left.
+        //
+        // See: https://www.davrous.com/2013/06/21/tutorial-part-4-learning-how-to-write-a-3d-software-engine-in-c-ts-or-js-rasterization-z-buffering/#comment-737
+        // and https://stackoverflow.com/questions/243945/calculating-a-2d-vectors-cross-product?answertab=votes#tab-top
+        var t_m = V2f32.init(m.coord.x() - t.coord.x(), m.coord.y() - t.coord.y());
+        var t_b = V2f32.init(b.coord.x() - t.coord.x(), b.coord.y() - t.coord.y());
+        var t_m_cross_t_b = t_m.cross(&t_b);
+
         // Two cases, 1) triangles with mid on the right
-        if (slope_t_m > slope_t_b) {
-            if (DBG_DrawTriangle) warn("drawTriangle: mid RIGHT slope_t_m:{.5} > slope_t_b:{.5}\n", slope_t_m, slope_t_b);
+        if (t_m_cross_t_b > 0) {
+            if (DBG_DrawTriangle) warn("drawTriangle: mid RIGHT t_m_cross_t_b:{.5} > 0\n", t_m_cross_t_b);
 
             // Triangles with mid on the right
             // t
@@ -436,7 +442,7 @@ pub const Window = struct {
                 }
             }
         } else {
-            if (DBG_DrawTriangle) warn("drawTriangle: mid LEFT  slope_t_m:{.5} <= slope_t_b:{.5}\n", slope_t_m, slope_t_b);
+            if (DBG_DrawTriangle) warn("drawTriangle: mid LEFT  t_m_cross_t_b:{.5} > 0\n", t_m_cross_t_b);
 
             // Triangles with mid on the left
             //     t
