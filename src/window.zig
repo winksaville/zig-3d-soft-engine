@@ -36,7 +36,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -549,7 +549,7 @@ pub const Window = struct {
                 }
                 if (DBG_RenderUsingModeWaitForKey) {
                     pSelf.present();
-                    _ = waitForKey("dt");
+                    _ = waitForKey("dt", true);
                 }
             }
         }
@@ -806,19 +806,19 @@ test "window.render.cube" {
     mesh.vertices[7] = Vertex.init(1, 1, -1);
 
     // 12 faces
-    mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2 };
-    mesh.faces[1] = Face{ .a = 0, .b = 2, .c = 3 };
-    mesh.faces[2] = Face{ .a = 3, .b = 2, .c = 6 };
-    mesh.faces[3] = Face{ .a = 3, .b = 6, .c = 7 };
-    mesh.faces[4] = Face{ .a = 7, .b = 6, .c = 5 };
-    mesh.faces[5] = Face{ .a = 7, .b = 5, .c = 4 };
+    mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2, .normal = undefined };
+    mesh.faces[1] = Face{ .a = 0, .b = 2, .c = 3, .normal = undefined };
+    mesh.faces[2] = Face{ .a = 3, .b = 2, .c = 6, .normal = undefined };
+    mesh.faces[3] = Face{ .a = 3, .b = 6, .c = 7, .normal = undefined };
+    mesh.faces[4] = Face{ .a = 7, .b = 6, .c = 5, .normal = undefined };
+    mesh.faces[5] = Face{ .a = 7, .b = 5, .c = 4, .normal = undefined };
 
-    mesh.faces[6] = Face{ .a = 4, .b = 5, .c = 1 };
-    mesh.faces[7] = Face{ .a = 4, .b = 1, .c = 0 };
-    mesh.faces[8] = Face{ .a = 0, .b = 3, .c = 4 };
-    mesh.faces[9] = Face{ .a = 3, .b = 7, .c = 4 };
-    mesh.faces[10] = Face{ .a = 1, .b = 6, .c = 2 };
-    mesh.faces[11] = Face{ .a = 1, .b = 5, .c = 6 };
+    mesh.faces[6] = Face{ .a = 4, .b = 5, .c = 1, .normal = undefined };
+    mesh.faces[7] = Face{ .a = 4, .b = 1, .c = 0, .normal = undefined };
+    mesh.faces[8] = Face{ .a = 0, .b = 3, .c = 4, .normal = undefined };
+    mesh.faces[9] = Face{ .a = 3, .b = 7, .c = 4, .normal = undefined };
+    mesh.faces[10] = Face{ .a = 1, .b = 6, .c = 2, .normal = undefined };
+    mesh.faces[11] = Face{ .a = 1, .b = 5, .c = 6, .normal = undefined };
 
     var meshes = []Mesh{mesh};
 
@@ -872,7 +872,7 @@ test "window.keyctrl.triangle" {
         mesh.vertices[1] = Vertex.init(-1, -1, 0);
         mesh.vertices[2] = Vertex.init(0.5, -0.5, 0);
 
-        mesh.faces[0] = Face{ .a = 0, .b = 1, .c = 2 };
+        mesh.faces[0] = Face.initComputeNormal(mesh.vertices, 0, 1, 2);
 
         var meshes = []Mesh{mesh};
 
@@ -1063,7 +1063,7 @@ var g_ks = KeyState{
 };
 
 /// Wait for a key
-fn waitForKey(s: []const u8) *KeyState {
+fn waitForKey(s: []const u8, exitOnEscape: bool) *KeyState {
     if (DBG_RenderUsingModeWaitForKey) warn("{} waitForKey: ...", s);
 
     g_ks.new_key = false;
@@ -1073,7 +1073,7 @@ fn waitForKey(s: []const u8) *KeyState {
 
     if (DBG_RenderUsingModeWaitForKey) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
 
-    if (g_ks.code == gl.SDLK_ESCAPE) std.os.exit(1);
+    if (g_ks.code == gl.SDLK_ESCAPE) if (exitOnEscape) std.os.exit(1);
 
     return &g_ks;
 }
@@ -1106,12 +1106,13 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         pWindow.present();
 
         // Wait for a key
-        var ks = waitForKey("keyCtrlMeshes");
+        var ks = waitForKey("keyCtrlMeshes", false);
 
         // Process the key
 
         // Check if changing focus
         switch (ks.code) {
+            gl.SDLK_ESCAPE => break :done,
             gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
             gl.SDLK_o => { focus = FocusType.Object; if (DBG) warn("focus = Object"); },
             else => {},

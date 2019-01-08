@@ -50,11 +50,15 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
     i = 0;
     var indicies_iter = indices.iterator();
     while (i < faces_count) : (i += 1) {
+        // Get the indexes for a,b,c
         var a = @intCast(usize, indicies_iter.next().?.Integer);
         var b = @intCast(usize, indicies_iter.next().?.Integer);
         var c = @intCast(usize, indicies_iter.next().?.Integer);
-        if (DBG1) warn("face[{}]={{ .a={} .b={} .c={} }}\n", i, a, b, c);
-        mesh.faces[i] = geo.Face { .a=a, .b=b, .c=c };
+
+        var normal = geo.computeFaceNormal(mesh.vertices, a, b, c);
+
+        mesh.faces[i] = geo.Face { .a=a, .b=b, .c=c, .normal=normal };
+        if (DBG1) warn("face[{}]={{ .a={} .b={} .c={} .normal={} }}\n", i, mesh.faces[i].a, mesh.faces[i].b, mesh.faces[i].c, mesh.faces[i].normal);
     }
 
     return mesh;
