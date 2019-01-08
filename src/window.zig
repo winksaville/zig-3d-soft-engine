@@ -391,6 +391,7 @@ pub const Window = struct {
         var t_ndotl = computeNormalDotLight(t.world_coord, t.normal_coord, light_pos);
         var m_ndotl = computeNormalDotLight(m.world_coord, m.normal_coord, light_pos);
         var b_ndotl = computeNormalDotLight(b.world_coord, b.normal_coord, light_pos);
+        if (DBG_DrawTriangle) warn("drawTriangle:\n t_ndotl={}\n m_ndotl={}\n b_ndotl={}\n", t_ndotl, m_ndotl, b_ndotl);
 
         var scanLineData: ScanLineData = undefined;
 
@@ -538,7 +539,9 @@ pub const Window = struct {
                         const tvc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
                         if (DBG_RenderUsingModeInner) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
 
-                        var colorF32: f32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
+                        var colorF32: f32 = undefined;
+                        //colorF32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
+                        colorF32 = 1.0;
                         var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
                         color = ColorU8.init(colorU8, colorU8, colorU8, colorU8);
                         pSelf.drawTriangle(tva, tvb, tvc, color);
