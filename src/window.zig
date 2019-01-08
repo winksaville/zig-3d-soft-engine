@@ -394,9 +394,10 @@ pub const Window = struct {
 
         var scanLineData: ScanLineData = undefined;
 
-        // Convert the bottom.coord.y and mid.coord.y to integers
-        var b_y = @floatToInt(isize, math.trunc(b.coord.y()));
+        // Convert the top.coord.y, mid.coord.y and bottom.coord.y to integers
+        var t_y = @floatToInt(isize, math.trunc(t.coord.y()));
         var m_y = @floatToInt(isize, math.trunc(m.coord.y()));
+        var b_y = @floatToInt(isize, math.trunc(b.coord.y()));
 
         // Create top to mid line and top to bottom lines.
         // We then take the cross product of these lines and
@@ -423,7 +424,7 @@ pub const Window = struct {
             // | /
             // |/
             // b
-            scanLineData.y = @floatToInt(isize, math.trunc(t.coord.y()));
+            scanLineData.y = t_y;
             while (scanLineData.y <= b_y) : (scanLineData.y += 1) {
                 if (scanLineData.y < m_y) {
                     if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} < m_y:{}\n", scanLineData.y, m_y);
@@ -454,9 +455,9 @@ pub const Window = struct {
             //   \ |
             //    \|
             //     b
-            scanLineData.y = @floatToInt(isize, math.trunc(t.coord.y()));
+            scanLineData.y = t_y;
             while (scanLineData.y <= b_y) : (scanLineData.y += 1) {
-                if (scanLineData.y < @floatToInt(isize, math.trunc(m.coord.y()))) {
+                if (scanLineData.y < m_y) {
                     if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} < m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = t_ndotl;
                     scanLineData.ndotlb = m_ndotl;
