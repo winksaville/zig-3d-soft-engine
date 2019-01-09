@@ -36,7 +36,7 @@ const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
 
 const ie = @import("input_events.zig");
 
-const DBG = false;
+const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -533,18 +533,34 @@ pub const Window = struct {
                         pSelf.drawBline(pc, pa, color);
                     },
                     RenderMode.Triangles => {
-                        // Transform the vertex's
-                        const tva = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
-                        const tvb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
-                        const tvc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
-                        if (DBG_RenderUsingModeInner) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
+                        // Transform face.normal to world_to_view_matrix and only render
+                        // faces which can be "seen" by the camera.
+                        // Bugs: 1) See "rendering bug"
+                        //          https://www.davrous.com/2013/07/18/tutorial-part-6-learning-how-to-write-a-3d-software-engine-in-c-ts-or-js-texture-mapping-back-face-culling-webgl
+                        //          it says that perspective isn't being taken into account and some triangles are not drawn when they should be.
+                        //
+                        //       2) I have to use "if (transformedNormal > 0) {" for VISIBLE where as in the tutorial code they use
+                        //          "if (transformedNormal < 0) {
+                        //          http://david.blob.core.windows.net/softengine3d/SoftEngineJSPart6Sample2.zip
+                        var transformedNormal = face.normal.transformNormal(&world_to_view_matrix);
+                        if (transformedNormal.z() > 0) {
+                            if (DBG_RenderUsingModeInner) warn("VISIBLE face.normal:{} transformedNormal:{}\n", &face.normal, &transformedNormal);
 
-                        var colorF32: f32 = undefined;
-                        //colorF32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
-                        colorF32 = 1.0;
-                        var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
-                        color = ColorU8.init(colorU8, colorU8, colorU8, colorU8);
-                        pSelf.drawTriangle(tva, tvb, tvc, color);
+                            // Transform the vertex's
+                            const tva = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
+                            const tvb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
+                            const tvc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
+                            if (DBG_RenderUsingModeInner) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
+
+                            var colorF32: f32 = undefined;
+                            //colorF32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
+                            colorF32 = 1.0;
+                            var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
+                            color = ColorU8.init(colorU8, colorU8, colorU8, colorU8);
+                            pSelf.drawTriangle(tva, tvb, tvc, color);
+                        } else {
+                            if (DBG_RenderUsingModeInner) warn("HIDDEN  face.normal:{} transformedNormal:{}\n", &face.normal, &transformedNormal);
+                        }
                     },
                 }
                 if (DBG_RenderUsingModeWaitForKey) {
