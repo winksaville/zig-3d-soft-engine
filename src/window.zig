@@ -1157,3 +1157,64 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         }
     }
 }
+
+test "window.bm.suzanne" {
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+    defer window.deinit();
+
+    // Black background color
+    window.setBgColor(ColorU8.Black);
+
+    var file_name = "modules/3d-test-resources/suzanne.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
+
+    var mesh = try createMeshFromBabylonJson(pAllocator, "suzanne", tree);
+    assert(std.mem.eql(u8, mesh.name, "suzanne"));
+    assert(mesh.vertices.len == 507);
+    assert(mesh.faces.len == 968);
+
+    var meshes = []Mesh{mesh};
+    var durationInMs: u64 = 1000;
+    var loops = try timeRenderer(&window, durationInMs, RenderMode.Triangles, &meshes);
+
+    var fps: f32 = @intToFloat(f32, loops * time.ms_per_s) / @intToFloat(f32, durationInMs);
+    warn("\nwindow.bm.suzanne: fps={.5}\n", fps);
+}
+
+fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, meshes: []Mesh) !u64 {
+    var camera_position = V3f32.init(0, 0, -5);
+    var camera_target = V3f32.init(0, 0, 0);
+    var camera = Camera.init(camera_position, camera_target);
+
+    // Loop until end_time is reached but always loop once :)
+    var msf: u64 = time.ns_per_s / time.ms_per_s;
+    var timer = try time.Timer.start();
+    var end_time: u64 = timer.read() + (durationInMs * msf);
+
+    var loops: u64 = 0;
+    while (true) {
+        loops = loops + 1;
+
+        // Render into a cleared screen
+        pWindow.clear();
+        pWindow.renderUsingMode(renderMode, &camera, meshes);
+
+        // Disable presenting as it limits framerate
+        //pWindow.present();
+
+        // Rotate meshes[0] around Y axis
+        var rotation = geo.degToRad(f32(1));
+        var rotationVec = V3f32.init(0, rotation, 0);
+        meshes[0].rotation = meshes[0].rotation.add(&rotationVec);
+
+        if (timer.read() > end_time) break;
+    }
+
+    return loops;
+}
