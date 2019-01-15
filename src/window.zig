@@ -31,8 +31,8 @@ const meshns = @import("../modules/zig-geometry/mesh.zig");
 const Mesh = meshns.Mesh;
 const Vertex = meshns.Vertex;
 const Face = meshns.Face;
-const computeVerticeNormals = meshns.computeVerticeNormals;
-const computeVerticeNormalsDbg = meshns.computeVerticeNormalsDbg;
+
+const Texture = @import("texture.zig").Texture;
 
 const ie = @import("input_events.zig");
 
@@ -50,6 +50,11 @@ const DBG_DrawTriangle = false;
 const DBG_DrawTriangleInner = false;
 const DBG_ProcessScanLine = false;
 const DBG_world_to_screen = false;
+
+const Entity = struct {
+    mesh: Mesh,
+    texture: ?Texture,
+};
 
 const RenderMode = enum {
     Points,
@@ -111,6 +116,12 @@ pub const Window = struct {
             return error.FailedSdlInitialization;
         }
         errdefer gl.SDL_Quit();
+
+        // Initialize SDL image
+        if (gl.IMG_Init(gl.IMG_INIT_JPG) != @intCast(c_int, gl.IMG_INIT_JPG)) {
+            return error.FailedSdlImageInitialization;
+        }
+        errdefer gl.IMG_Quit();
 
         // Create Window
         const x_pos: c_int = gl.SDL_WINDOWPOS_UNDEFINED;
@@ -478,8 +489,8 @@ pub const Window = struct {
         }
     }
 
-    /// Render the meshes into the window from the camera's point of view
-    pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, meshes: []const Mesh) void {
+    /// Render the entities into the window from the camera's point of view
+    pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, entities: []const Entity) void {
         var view_matrix: geo.M44f32 = undefined;
         view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
         if (DBG_RenderUsingMode) warn("view_matrix:\n{}\n", &view_matrix);
@@ -490,7 +501,8 @@ pub const Window = struct {
         var perspective_matrix = geo.perspectiveM44(f32, geo.rad(fov), pSelf.widthf / pSelf.heightf, znear, zfar);
         if (DBG_RenderUsingMode) warn("perspective_matrix: fov={.3}, znear={.3} zfar={.3}\n{}\n", fov, znear, zfar, &perspective_matrix);
 
-        for (meshes) |mesh| {
+        for (entities) |entity| {
+            var mesh = entity.mesh;
             var rotation_matrix = geo.rotateCwPitchYawRollV3f32(mesh.rotation);
             if (DBG_RenderUsingMode) warn("rotation_matrix:\n{}\n", &rotation_matrix);
             var translation_matrix = geo.translationV3f32(mesh.position);
@@ -572,8 +584,8 @@ pub const Window = struct {
         }
     }
 
-    pub fn render(pSelf: *Self, camera: *const Camera, meshes: []const Mesh) void {
-        renderUsingMode(pSelf, DBG_RenderMode, camera, meshes);
+    pub fn render(pSelf: *Self, camera: *const Camera, entities: []const Entity) void {
+        renderUsingMode(pSelf, DBG_RenderMode, camera, entities);
     }
 };
 
@@ -837,10 +849,11 @@ test "window.render.cube" {
     mesh.faces[10] = Face{ .a = 1, .b = 6, .c = 2, .normal = undefined };
     mesh.faces[11] = Face{ .a = 1, .b = 5, .c = 6, .normal = undefined };
 
-    var meshes = []Mesh{mesh};
-
-    warn("\n");
-    computeVerticeNormalsDbg(true, meshes[0..]);
+    var entity = Entity {
+        .texture = null,
+        .mesh = mesh,
+    };
+    var entities = []Entity { entity };
 
     var movement = V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
@@ -855,15 +868,15 @@ test "window.render.cube" {
     while (true) {
         window.clear();
 
-        if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", meshes[0].rotation.x(), meshes[0].rotation.y(), meshes[0].rotation.z());
-        window.render(&camera, &meshes);
+        if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", entities[0].mesh.rotation.x(), entities[0].mesh.rotation.y(), entities[0].mesh.rotation.z());
+        window.render(&camera, entities);
 
         var center = V2f32.init(window.widthf / 2, window.heightf / 2);
         window.drawPointV2f32(center, ColorU8.White);
 
         window.present();
 
-        meshes[0].rotation = meshes[0].rotation.add(&movement);
+        entities[0].mesh.rotation = entities[0].mesh.rotation.add(&movement);
 
         if (timer.read() > end_time) break;
     }
@@ -891,12 +904,13 @@ test "window.keyctrl.triangle" {
 
         mesh.faces[0] = Face.initComputeNormal(mesh.vertices, 0, 1, 2);
 
-        var meshes = []Mesh{mesh};
-
-        warn("\n");
-        computeVerticeNormalsDbg(if (DBG) true else false, meshes[0..]);
-
-        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
+        var entities = []Entity{
+            Entity{
+                .texture = null,
+                .mesh = mesh,
+            },
+        };
+        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
     }
 }
 
@@ -917,9 +931,13 @@ test "window.keyctrl.cube" {
         var mesh = try createMeshFromBabylonJson(pAllocator, "cube", tree);
         assert(std.mem.eql(u8, mesh.name, "cube"));
 
-        var meshes = []Mesh{mesh};
-
-        keyCtrlMeshes(&window, RenderMode.Points, &meshes);
+        var entities = []Entity{
+            Entity{
+                .texture = null,
+                .mesh = mesh,
+            },
+        };
+        keyCtrlEntities(&window, RenderMode.Points, entities[0..]);
     }
 }
 
@@ -943,8 +961,13 @@ test "window.keyctrl.pyramid" {
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
-        var meshes = []Mesh{mesh};
-        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
+        var entities = []Entity{
+            Entity{
+                .texture = null,
+                .mesh = mesh,
+            },
+        };
+        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
     }
 }
 
@@ -968,8 +991,13 @@ test "window.keyctrl.tilted.pyramid" {
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
-        var meshes = []Mesh{mesh};
-        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
+        var entities = []Entity{
+            Entity{
+                .texture = null,
+                .mesh = mesh,
+            },
+        };
+        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
     }
 }
 
@@ -995,8 +1023,13 @@ test "window.keyctrl.suzanne" {
         assert(mesh.vertices.len == 507);
         assert(mesh.faces.len == 968);
 
-        var meshes = []Mesh{mesh};
-        keyCtrlMeshes(&window, RenderMode.Triangles, &meshes);
+        var entities = []Entity{
+            Entity{
+                .texture = null,
+                .mesh = mesh,
+            },
+        };
+        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
     }
 }
 
@@ -1095,7 +1128,7 @@ fn waitForKey(s: []const u8, exitOnEscape: bool) *KeyState {
     return &g_ks;
 }
 
-fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void {
+fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity) void {
     const FocusType = enum {
         Camera,
         Object,
@@ -1117,13 +1150,13 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         }
 
         if (DBG1) warn("camera={}\n", &camera.position);
-        if (DBG1) warn("rotation={}\n", meshes[0].rotation);
-        pWindow.renderUsingMode(renderMode, &camera, meshes);
+        if (DBG1) warn("rotation={}\n", entities[0].mesh.rotation);
+        pWindow.renderUsingMode(renderMode, &camera, entities[0..]);
 
         pWindow.present();
 
         // Wait for a key
-        var ks = waitForKey("keyCtrlMeshes", false);
+        var ks = waitForKey("keyCtrlEntities", false);
 
         // Process the key
 
@@ -1138,10 +1171,10 @@ fn keyCtrlMeshes(pWindow: *Window, renderMode: RenderMode, meshes: []Mesh) void 
         if (focus == FocusType.Object) {
             // Process for Object
             switch (ks.code) {
-                gl.SDLK_LEFT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, f32(15)),
-                gl.SDLK_RIGHT => meshes[0].rotation = rotate(ks.mod, meshes[0].rotation, -f32(15)),
-                gl.SDLK_UP => meshes[0].position = translate(ks.mod, meshes[0].position, f32(1)),
-                gl.SDLK_DOWN => meshes[0].position = translate(ks.mod, meshes[0].position, -f32(1)),
+                gl.SDLK_LEFT => entities[0].mesh.rotation = rotate(ks.mod, entities[0].mesh.rotation, f32(15)),
+                gl.SDLK_RIGHT => entities[0].mesh.rotation = rotate(ks.mod, entities[0].mesh.rotation, -f32(15)),
+                gl.SDLK_UP => entities[0].mesh.position = translate(ks.mod, entities[0].mesh.position, f32(1)),
+                gl.SDLK_DOWN => entities[0].mesh.position = translate(ks.mod, entities[0].mesh.position, -f32(1)),
                 else => {},
             }
         }
@@ -1180,15 +1213,20 @@ test "window.bm.suzanne" {
     assert(mesh.vertices.len == 507);
     assert(mesh.faces.len == 968);
 
-    var meshes = []Mesh{mesh};
     var durationInMs: u64 = 1000;
-    var loops = try timeRenderer(&window, durationInMs, RenderMode.Triangles, &meshes);
+    var entities = []Entity{
+        Entity{
+            .texture = null,
+            .mesh = mesh,
+        },
+    };
+    var loops = try timeRenderer(&window, durationInMs, RenderMode.Triangles, entities[0..]);
 
     var fps: f32 = @intToFloat(f32, loops * time.ms_per_s) / @intToFloat(f32, durationInMs);
     warn("\nwindow.bm.suzanne: fps={.5}\n", fps);
 }
 
-fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, meshes: []Mesh) !u64 {
+fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, entities: []Entity) !u64 {
     var camera_position = V3f32.init(0, 0, -5);
     var camera_target = V3f32.init(0, 0, 0);
     var camera = Camera.init(camera_position, camera_target);
@@ -1204,15 +1242,15 @@ fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, mes
 
         // Render into a cleared screen
         pWindow.clear();
-        pWindow.renderUsingMode(renderMode, &camera, meshes);
+        pWindow.renderUsingMode(renderMode, &camera, entities[0..]);
 
         // Disable presenting as it limits framerate
         //pWindow.present();
 
-        // Rotate meshes[0] around Y axis
+        // Rotate entities[0] around Y axis
         var rotation = geo.degToRad(f32(1));
         var rotationVec = V3f32.init(0, rotation, 0);
-        meshes[0].rotation = meshes[0].rotation.add(&rotationVec);
+        entities[0].mesh.rotation = entities[0].mesh.rotation.add(&rotationVec);
 
         if (timer.read() > end_time) break;
     }
