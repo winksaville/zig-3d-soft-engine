@@ -344,7 +344,7 @@ pub const Window = struct {
     /// va:vb to another defined line vc:vd. It is assumed they have
     /// already been sorted and we're drawing horizontal lines with
     /// line va:vb on the left and vc:vd on the right.
-    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, va: Vertex, vb: Vertex, vc: Vertex, vd: Vertex, color: ColorU8) void {
+    pub fn processScanLine(pSelf: *Self, scanLineData: ScanLineData, va: Vertex, vb: Vertex, vc: Vertex, vd: Vertex, color: ColorU8, texture: ?Texture) void {
         var pa = va.coord;
         var pb = vb.coord;
         var pc = vc.coord;
@@ -378,7 +378,7 @@ pub const Window = struct {
         }
     }
 
-    pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: ColorU8) void {
+    pub fn drawTriangle(pSelf: *Self, v1: Vertex, v2: Vertex, v3: Vertex, color: ColorU8, texture: ?Texture) void {
         if (DBG_DrawTriangle) warn("drawTriangle:\n v1={}\n v2={}\n v3={}\n", v1, v2, v3);
 
         // Sort the points finding top, mid, bottom.
@@ -445,14 +445,14 @@ pub const Window = struct {
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = m_ndotl;
-                    pSelf.processScanLine(scanLineData, t, b, t, m, color);
+                    pSelf.processScanLine(scanLineData, t, b, t, m, color, texture);
                 } else {
                     if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} >= m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = t_ndotl;
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = m_ndotl;
                     scanLineData.ndotld = b_ndotl;
-                    pSelf.processScanLine(scanLineData, t, b, m, b, color);
+                    pSelf.processScanLine(scanLineData, t, b, m, b, color, texture);
                 }
             }
         } else {
@@ -476,14 +476,14 @@ pub const Window = struct {
                     scanLineData.ndotlb = m_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = b_ndotl;
-                    pSelf.processScanLine(scanLineData, t, m, t, b, color);
+                    pSelf.processScanLine(scanLineData, t, m, t, b, color, texture);
                 } else {
                     if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} >= m_y:{}\n", scanLineData.y, m_y);
                     scanLineData.ndotla = m_ndotl;
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = b_ndotl;
-                    pSelf.processScanLine(scanLineData, m, b, t, b, color);
+                    pSelf.processScanLine(scanLineData, m, b, t, b, color, texture);
                 }
             }
         }
@@ -570,7 +570,7 @@ pub const Window = struct {
                             colorF32 = 1.0;
                             var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
                             color = ColorU8.init(colorU8, colorU8, colorU8, colorU8);
-                            pSelf.drawTriangle(tva, tvb, tvc, color);
+                            pSelf.drawTriangle(tva, tvb, tvc, color, entity.texture);
                         } else {
                             if (DBG_RenderUsingModeInner) warn("HIDDEN  face.normal:{} transformedNormal:{}\n", &face.normal, &transformedNormal);
                         }
