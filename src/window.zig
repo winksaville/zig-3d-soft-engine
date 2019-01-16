@@ -49,6 +49,7 @@ const DBG_Translate = false;
 const DBG_DrawTriangle = false;
 const DBG_DrawTriangleInner = false;
 const DBG_ProcessScanLine = false;
+const DBG_world_to_screen = false;
 
 const RenderMode = enum {
     Points,
@@ -707,7 +708,7 @@ test "window.drawLine" {
 }
 
 test "window.world.to.screen" {
-    if (DBG) warn("\n");
+    if (DBG_world_to_screen) warn("\n");
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
@@ -730,14 +731,14 @@ test "window.world.to.screen" {
     defer window.deinit();
 
     var view_to_perspective_matrix = geo.perspectiveM44(f32, geo.rad(fov), aspect, znear, zfar);
-    if (DBG) warn("view_to_perspective_matrix=\n{}\n", view_to_perspective_matrix);
+    if (DBG_world_to_screen) warn("view_to_perspective_matrix=\n{}\n", view_to_perspective_matrix);
 
     var world_to_view_matrix: geo.M44f32 = undefined;
 
     world_to_view_matrix = geo.lookAtRh(&camera.position, &camera.target, &V3f32.unitY());
     world_to_view_matrix = geo.m44f32_unit;
     world_to_view_matrix.data[3][2] = 2;
-    if (DBG) warn("world_to_view_matrix=\n{}\n", world_to_view_matrix);
+    if (DBG_world_to_screen) warn("world_to_view_matrix=\n{}\n", world_to_view_matrix);
 
     var world_vertexs = []V3f32{
         V3f32.init(0, 1, 0),
@@ -764,20 +765,20 @@ test "window.world.to.screen" {
     var msf: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
     var end_time: u64 = 0;
-    if (DBG or DBG1 or DBG2 or DBG3) end_time += (4000 * msf);
+    if (DBG_world_to_screen) end_time += (4000 * msf);
 
     while (true) {
         window.clear();
 
         for (world_vertexs) |world_vert, i| {
-            if (DBG) warn("world_vert[{}]  = {}\n", i, &world_vert);
+            if (DBG_world_to_screen) warn("world_vert[{}]  = {}\n", i, &world_vert);
 
             var view_vert = world_vert.transform(&world_to_view_matrix);
-            if (DBG) warn("view_vert      = {}\n", view_vert);
+            if (DBG_world_to_screen) warn("view_vert      = {}\n", view_vert);
             assert(view_vert.approxEql(&expected_view_vertexs[i], 5));
 
             var projected_vert = view_vert.transform(&view_to_perspective_matrix);
-            if (DBG) warn("projected_vert = {}\n", projected_vert);
+            if (DBG_world_to_screen) warn("projected_vert = {}\n", projected_vert);
             assert(projected_vert.approxEql(&expected_projected_vertexs[i], 5));
 
             var point = window.projectRetV2f32(projected_vert, &geo.m44f32_unit);
