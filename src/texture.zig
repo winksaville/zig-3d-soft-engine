@@ -51,7 +51,6 @@ pub const Texture = struct {
         }
         var pitch: usize = @intCast(usize, surface.pitch);
         var count: usize = pSelf.width * pSelf.height * bpp;
-        //var pFirstByte: *u8 = surface.pixels orelse return error.NoPixels;
         var pPixels: []const u8 = if (surface.pixels) |p| @ptrCast([*]u8, p)[0..count] else return error.NoPixels;
 
         pSelf.pixels = try pSelf.pAllocator.alloc(ColorU8, count);
@@ -59,20 +58,23 @@ pub const Texture = struct {
         var line_offset: usize = 0;
         var dest_offset: usize = 0;
         while (y < pSelf.height) : (y += 1) {
+            // Looping through the lines of pixels
             var pLine: []const u8 = pPixels[line_offset..];
             var x: usize = 0;
             var src_offset: usize = 0;
             while (x < pSelf.width) : (x += 1) {
-                // Create an slice of this pixels bytes
-                var pixel: []const u8 = pLine[src_offset..(src_offset + bpp)];
+                // Loopting through the pixels on a line
+
+                // Create a slice of this pixels bytes
+                var pPixel: []const u8 = pLine[src_offset..(src_offset + bpp)];
                 src_offset += bpp;
 
                 // Extract the bytes into a u32
                 var raw_pixel: u32 = switch (bpp) {
-                    1 => @intCast(u32, pixel[0]),
-                    2 => @intCast(u32, pixel[0]) << 0 | @intCast(u32, pixel[1]) << 8,
-                    3 => @intCast(u32, pixel[0]) << 0 | @intCast(u32, pixel[1]) << 8 | @intCast(u32, pixel[2]) << 16,
-                    4 => @intCast(u32, pixel[0]) << 0 | @intCast(u32, pixel[1]) << 8 | @intCast(u32, pixel[2]) << 16 | @intCast(u32, pixel[3]) << 24,
+                    1 => @intCast(u32, pPixel[0]),
+                    2 => @intCast(u32, pPixel[0]) << 0 | @intCast(u32, pPixel[1]) << 8,
+                    3 => @intCast(u32, pPixel[0]) << 0 | @intCast(u32, pPixel[1]) << 8 | @intCast(u32, pPixel[2]) << 16,
+                    4 => @intCast(u32, pPixel[0]) << 0 | @intCast(u32, pPixel[1]) << 8 | @intCast(u32, pPixel[2]) << 16 | @intCast(u32, pPixel[3]) << 24,
                     else => unreachable,
                 };
 
@@ -100,6 +102,10 @@ test "texture.empty" {
 
     var texture = Texture.init(pAllocator, "");
     defer texture.deinit();
+}
+
+test "texture.known.TODO" {
+    // TODO: Add a test with known contents so we truly validate
 }
 
 test "texture.bricks2" {
