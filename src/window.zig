@@ -49,6 +49,7 @@ const DBG_Translate = false;
 const DBG_DrawTriangle = false;
 const DBG_DrawTriangleInner = false;
 const DBG_ProcessScanLine = false;
+const DBG_ProcessScanLineInner = false;
 const DBG_world_to_screen = false;
 
 const Entity = struct {
@@ -366,15 +367,31 @@ pub const Window = struct {
         var snl: f32 = interpolate(scanLineData.ndotla, scanLineData.ndotlb, gradient1);
         var enl: f32 = interpolate(scanLineData.ndotlc, scanLineData.ndotld, gradient2);
 
-        // Draw a horzitional line between start and end x
-        var x: isize = sx;
-        if (DBG_ProcessScanLine) warn("processScanLine: sx={} ex={} cnt={}\n", sx, ex, ex - sx);
-        while (x < ex) : (x += 1) {
-            var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex - sx));
-            var z = interpolate(sz, ez, gradient);
-            var ndotl = interpolate(snl, enl, gradient);
+        // BUG: the texture is NOT projected onto the triangle, instead
+        // the triangle is a "window" onto the texture.
 
-            pSelf.drawPointXyz(x, scanLineData.y, z, color.colorScale(ndotl));
+        // Draw a horzitional line between start and end
+        if (scanLineData.y >= 0) { // Check if y is negative so our v casting works
+            var x: isize = sx;
+            if (DBG_ProcessScanLine) warn("processScanLine: y={} sx={} ex={} cnt={}\n", scanLineData.y, sx, ex, ex - sx);
+            while (x < ex) : (x += 1) {
+                var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex - sx));
+                var z = interpolate(sz, ez, gradient);
+                var ndotl = interpolate(snl, enl, gradient);
+
+                if (x >= 0) { // Check if x is negative so our u casting works
+                    var c: ColorU8 = undefined;
+                    if (texture) |t| {
+                        var u: usize = @intCast(usize, x) % t.width;
+                        var v: usize = @intCast(usize, scanLineData.y) % t.height;
+                        c = if (t.pixels) |p| p[(v * t.width) + u] else color;
+                        if (DBG_ProcessScanLineInner) warn("processScanLine: c={}\n", &c);
+                    } else {
+                        c = color;
+                    }
+                    pSelf.drawPointXyz(x, scanLineData.y, z, c.colorScale(ndotl));
+                }
+            }
         }
     }
 
@@ -910,7 +927,7 @@ test "window.keyctrl.triangle" {
                 .mesh = mesh,
             },
         };
-        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
+        keyCtrlEntities(&window, RenderMode.Points, entities[0..]);
     }
 }
 
@@ -961,9 +978,13 @@ test "window.keyctrl.pyramid" {
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
+        var texture = Texture.init(pAllocator, "modules/3d-test-resources/bricks2.jpg");
+        defer texture.deinit();
+        try texture.load();
+
         var entities = []Entity{
             Entity{
-                .texture = null,
+                .texture = texture, //null,
                 .mesh = mesh,
             },
         };
