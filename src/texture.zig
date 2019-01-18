@@ -92,6 +92,17 @@ pub const Texture = struct {
             line_offset += pitch;
         }
     }
+
+    pub fn map(pSelf: *Self, tu: f32, tv: f32) ColorU8 {
+        if (pSelf.pixels) |pPixels| {
+            var u = @floatToInt(usize, tu * pSelf.width) % pSelf.width;
+            var v = @floatToInt(usize, tv * pSelf.height) % pSelf.height;
+
+            return pPixels[(v * pSelf.width) + u];
+        } else {
+            return ColorU8.White;
+        }
+    }
 };
 
 test "texture.empty" {
