@@ -21,6 +21,9 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
     var normals = meshes.items[0].Object.get("normals").?.value.Array;
     if (DBG) warn("normals.len={}\n", normals.len);
 
+    var uvs = meshes.items[0].Object.get("uvs").?.value.Array;
+    if (DBG) warn("uvs.len={}\n", uvs.len);
+
     var indices = meshes.items[0].Object.get("indices").?.value.Array;
     if (DBG) warn("indices.len={}\n", indices.len);
 
@@ -33,6 +36,7 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
     var i: usize = 0;
     var pos_iter = positions.iterator();
     var nrml_iter = normals.iterator();
+    var uvs_iter = uvs.iterator();
     while (i < vertices_count) : (i += 1) {
         var x = try pos_iter.next().?.asFloat(f32);
         var y = try pos_iter.next().?.asFloat(f32);
@@ -41,10 +45,15 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
         var nx = try nrml_iter.next().?.asFloat(f32);
         var ny = try nrml_iter.next().?.asFloat(f32);
         var nz = try nrml_iter.next().?.asFloat(f32);
+
+        var u = try uvs_iter.next().?.asFloat(f32);
+        var v = try uvs_iter.next().?.asFloat(f32);
+
         mesh.vertices[i] = geo.Vertex {
             .coord = geo.V3f32.init(x, y, z),
             .world_coord = geo.V3f32.init(0, 0, 0),
             .normal_coord = geo.V3f32.init(nx, ny, nz),
+            .texture_coord = geo.V2f32.init(u, v),
         };
     }
     i = 0;
