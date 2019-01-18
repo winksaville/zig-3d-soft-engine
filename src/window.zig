@@ -70,6 +70,16 @@ const ScanLineData = struct {
     pub ndotlb: f32,
     pub ndotlc: f32,
     pub ndotld: f32,
+
+    pub ua: f32,
+    pub ub: f32,
+    pub uc: f32,
+    pub ud: f32,
+
+    pub va: f32,
+    pub vb: f32,
+    pub vc: f32,
+    pub vd: f32,
 };
 
 pub const Window = struct {
@@ -309,6 +319,7 @@ pub const Window = struct {
             .coord = V3f32.init(x, y, point.z()),
             .world_coord = point_world,
             .normal_coord = normal_world,
+            .texture_coord = vertex.texture_coord,
         };
     }
 
@@ -367,8 +378,11 @@ pub const Window = struct {
         var snl: f32 = interpolate(scanLineData.ndotla, scanLineData.ndotlb, gradient1);
         var enl: f32 = interpolate(scanLineData.ndotlc, scanLineData.ndotld, gradient2);
 
-        // BUG: the texture is NOT projected onto the triangle, instead
-        // the triangle is a "window" onto the texture.
+        // Define the start and end for texture u/v
+        var su: f32 = interpolate(scanLineData.ua, scanLineData.ub, gradient1);
+        var eu: f32 = interpolate(scanLineData.uc, scanLineData.ud, gradient2);
+        var sv: f32 = interpolate(scanLineData.va, scanLineData.vb, gradient1);
+        var ev: f32 = interpolate(scanLineData.vc, scanLineData.vd, gradient2);
 
         // Draw a horzitional line between start and end
         if (scanLineData.y >= 0) { // Check if y is negative so our v casting works
@@ -378,13 +392,13 @@ pub const Window = struct {
                 var gradient: f32 = @intToFloat(f32, (x - sx)) / @intToFloat(f32, (ex - sx));
                 var z = interpolate(sz, ez, gradient);
                 var ndotl = interpolate(snl, enl, gradient);
+                var u = interpolate(su, eu, gradient);
+                var v = interpolate(sv, ev, gradient);
 
                 if (x >= 0) { // Check if x is negative so our u casting works
                     var c: ColorU8 = undefined;
                     if (texture) |t| {
-                        var u: usize = @intCast(usize, x) % t.width;
-                        var v: usize = @intCast(usize, scanLineData.y) % t.height;
-                        c = if (t.pixels) |p| p[(v * t.width) + u] else color;
+                        c = t.map(u, v, color);
                         if (DBG_ProcessScanLineInner) warn("processScanLine: c={}\n", &c);
                     } else {
                         c = color;
@@ -462,6 +476,14 @@ pub const Window = struct {
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = m_ndotl;
+                    scanLineData.ua = v1.texture_coord.x();
+                    scanLineData.ub = v3.texture_coord.x();
+                    scanLineData.uc = v1.texture_coord.x();
+                    scanLineData.ud = v2.texture_coord.x();
+                    scanLineData.va = v1.texture_coord.y();
+                    scanLineData.vb = v3.texture_coord.y();
+                    scanLineData.vc = v1.texture_coord.y();
+                    scanLineData.vd = v2.texture_coord.y();
                     pSelf.processScanLine(scanLineData, t, b, t, m, color, texture);
                 } else {
                     if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} >= m_y:{}\n", scanLineData.y, m_y);
@@ -469,6 +491,14 @@ pub const Window = struct {
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = m_ndotl;
                     scanLineData.ndotld = b_ndotl;
+                    scanLineData.ua = v1.texture_coord.x();
+                    scanLineData.ub = v3.texture_coord.x();
+                    scanLineData.uc = v2.texture_coord.x();
+                    scanLineData.ud = v3.texture_coord.x();
+                    scanLineData.va = v1.texture_coord.y();
+                    scanLineData.vb = v3.texture_coord.y();
+                    scanLineData.vc = v2.texture_coord.y();
+                    scanLineData.vd = v3.texture_coord.y();
                     pSelf.processScanLine(scanLineData, t, b, m, b, color, texture);
                 }
             }
@@ -493,6 +523,14 @@ pub const Window = struct {
                     scanLineData.ndotlb = m_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = b_ndotl;
+                    scanLineData.ua = v1.texture_coord.x();
+                    scanLineData.ub = v2.texture_coord.x();
+                    scanLineData.uc = v1.texture_coord.x();
+                    scanLineData.ud = v3.texture_coord.x();
+                    scanLineData.va = v1.texture_coord.y();
+                    scanLineData.vb = v2.texture_coord.y();
+                    scanLineData.vc = v1.texture_coord.y();
+                    scanLineData.vd = v3.texture_coord.y();
                     pSelf.processScanLine(scanLineData, t, m, t, b, color, texture);
                 } else {
                     if (DBG_DrawTriangleInner) warn("drawTriangle: scanLineData.y:{} >= m_y:{}\n", scanLineData.y, m_y);
@@ -500,6 +538,14 @@ pub const Window = struct {
                     scanLineData.ndotlb = b_ndotl;
                     scanLineData.ndotlc = t_ndotl;
                     scanLineData.ndotld = b_ndotl;
+                    scanLineData.ua = v2.texture_coord.x();
+                    scanLineData.ub = v3.texture_coord.x();
+                    scanLineData.uc = v1.texture_coord.x();
+                    scanLineData.ud = v3.texture_coord.x();
+                    scanLineData.va = v2.texture_coord.y();
+                    scanLineData.vb = v3.texture_coord.y();
+                    scanLineData.vc = v1.texture_coord.y();
+                    scanLineData.vd = v3.texture_coord.y();
                     pSelf.processScanLine(scanLineData, m, b, t, b, color, texture);
                 }
             }
@@ -960,6 +1006,7 @@ test "window.keyctrl.cube" {
 
 test "window.keyctrl.pyramid" {
     if (DBG) {
+        warn("\n");
         var direct_allocator = std.heap.DirectAllocator.init();
         var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
         defer arena_allocator.deinit();

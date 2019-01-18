@@ -93,14 +93,17 @@ pub const Texture = struct {
         }
     }
 
-    pub fn map(pSelf: *Self, tu: f32, tv: f32) ColorU8 {
+    pub fn map(pSelf: *const Self, tu: f32, tv: f32, defaultColor: ColorU8) ColorU8 {
         if (pSelf.pixels) |pPixels| {
-            var u = @floatToInt(usize, tu * pSelf.width) % pSelf.width;
-            var v = @floatToInt(usize, tv * pSelf.height) % pSelf.height;
-
+            var u = @floatToInt(usize, tu * @intToFloat(f32, pSelf.width)) % pSelf.width;
+            var v = @floatToInt(usize, tv * @intToFloat(f32, pSelf.height)) % pSelf.height;
             return pPixels[(v * pSelf.width) + u];
+            //var c = pPixels[(v * pSelf.width) + u];
+            //warn("map: tu={.3} tv={.3} u={} v={} c={}... ", tu, tv, u, v, &c);
+
+            //return c;
         } else {
-            return ColorU8.White;
+            return defaultColor;
         }
     }
 };
