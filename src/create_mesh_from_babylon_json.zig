@@ -21,7 +21,8 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
     var normals = meshes.items[0].Object.get("normals").?.value.Array;
     if (DBG) warn("normals.len={}\n", normals.len);
 
-    var uvs = meshes.items[0].Object.get("uvs").?.value.Array;
+    // If uvs isn't available then an empyt list
+    var uvs = if (meshes.items[0].Object.get("uvs")) |pUvs| pUvs.value.Array else std.ArrayList(json.Value).init(pAllocator);
     if (DBG) warn("uvs.len={}\n", uvs.len);
 
     var indices = meshes.items[0].Object.get("indices").?.value.Array;
@@ -46,8 +47,9 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
         var ny = try nrml_iter.next().?.asFloat(f32);
         var nz = try nrml_iter.next().?.asFloat(f32);
 
-        var u = try uvs_iter.next().?.asFloat(f32);
-        var v = try uvs_iter.next().?.asFloat(f32);
+        // Len of uvs maybe zero
+        var u: f32 = if (uvs_iter.next()) |nu| try nu.asFloat(f32) else 0.0;
+        var v: f32 = if (uvs_iter.next()) |nv| try nv.asFloat(f32) else 0.0;
 
         mesh.vertices[i] = geo.Vertex {
             .coord = geo.V3f32.init(x, y, z),
