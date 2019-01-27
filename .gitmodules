@@ -14,3 +14,6 @@
 [submodule "modules/zig-misc"]
 	path = modules/zig-misc
 	url = git@github.com:winksaville/zig-misc.git
+[submodule "modules/zig-freetype2"]
+	path = modules/zig-freetype2
+	url = git@github.com:winksaville/zig-freetype2
