@@ -1370,8 +1370,8 @@ const Zcint = c_int; // mapCtoZigType(c_int);
 const PTS: Zcint = 20;       // 20 "points" for character size 20/64 of inch
 const DPI: Zcint = 100;      // dots per inch
 
-const WIDTH: Zcint =  100;   // display width
-const HEIGHT: Zcint =  75;   // display height
+const WIDTH: Zcint =  512;   // display width
+const HEIGHT: Zcint = 512;   // display height
 
 fn scaledInt(comptime IntType: type, v: f64, scale: IntType) IntType {
      return @floatToInt(IntType, v * @intToFloat(f64, scale));
@@ -1423,25 +1423,28 @@ fn drawBitMap(image: *[HEIGHT][WIDTH]u8, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zc
     }
 }
 
-fn showImage(image: *[HEIGHT][WIDTH]u8) void {
+fn showImage(window: *Window, image: *[HEIGHT][WIDTH]u8) void {
     var y: Zcint = 0;
     while (y < HEIGHT) : (y += 1) {
         var x: Zcint = 0;
-        if (DBG) warn("{}:{} ", y, x);
         while (x < WIDTH) : (x += 1) {
-            var ch: u8 = switch (image[@intCast(usize, y)][@intCast(usize, x)]) {
-                0 => u8(' '),
-                1 ... 127 => u8('+'),
-                128 ... 255 => u8('*'),
-            };
-            warn("{c}", ch);
+            var color: u8 = image[@intCast(usize, y)][@intCast(usize, x)];
+            window.drawPointXy(x, y, ColorU8.init(0xff, color, color, color));
         }
-        warn("\n");
     }
+
+    window.present();
 }
 
 test "test-freetype2" {
-    warn("\n");
+    // Init Window
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, WIDTH, HEIGHT, "testWindow");
+    defer window.deinit();
 
     // Setup parameters
 
@@ -1514,5 +1517,16 @@ test "test-freetype2" {
         pen.y += slot.advance.y;
     }
 
-    showImage(&image);
+    // Black background color
+    window.setBgColor(ColorU8.Black);
+    window.clear();
+    showImage(&window, &image);
+
+    var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
+    var timer = try time.Timer.start();
+    var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
+
+    while (true) {
+        if (timer.read() > end_time) break;
+    }
 }
