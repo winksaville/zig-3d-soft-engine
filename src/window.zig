@@ -1405,7 +1405,7 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
                 var g: u8 = @floatToInt(u8, @intToFloat(f32, color.g) * grey);
                 var b: u8 = @floatToInt(u8, @intToFloat(f32, color.b) * grey);
                 var c = ColorU8.init(color.a, r, g, b);
-                if (DBG_drawToTexture) warn("{p}:{x}:{} ", ptr, ptr.*, &c);
+                if (DBG_drawToTexture) warn("<{p}={.1} {},{}={}> ", ptr, grey, j, i, b);
                 texture.pixels.?[(@intCast(usize, j) * texture.height) + @intCast(usize, i)] = c;
             }
             j += 1;
@@ -1418,13 +1418,13 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
     }
 }
 
-fn showImage(window: *Window, image: *[HEIGHT][WIDTH]u8) void {
-    var y: Zcint = 0;
-    while (y < HEIGHT) : (y += 1) {
-        var x: Zcint = 0;
-        while (x < WIDTH) : (x += 1) {
-            var color: u8 = image[@intCast(usize, y)][@intCast(usize, x)];
-            window.drawPointXy(x, y, ColorU8.init(0xff, color, color, 0x00));
+fn showTexture(window: *Window, texture: *Texture) void {
+    var y: usize = 0;
+    while (y < texture.height) : (y += 1) {
+        var x: usize = 0;
+        while (x < texture.width) : (x += 1) {
+            var color = texture.pixels.?[(@intCast(usize, y) * texture.height) + @intCast(usize, x)];
+            window.drawPointXy(@intCast(isize, x), @intCast(isize, y), color);
         }
     }
 
@@ -1519,7 +1519,7 @@ test "test-freetype2" {
     window.clear();
 
     var entity = Entity {
-        .texture = texture,
+        .texture = null, //texture,
         .mesh = mesh,
     };
     var entities = []Entity { entity };
@@ -1527,6 +1527,7 @@ test "test-freetype2" {
     // Render any entities
     window.renderUsingMode(RenderMode.Triangles, &camera, entities);
     window.present();
+    showTexture(&window, &texture);
 
     var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
