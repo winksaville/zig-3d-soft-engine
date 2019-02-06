@@ -13,29 +13,45 @@ pub const Texture = struct {
     const Self = @This();
 
     pAllocator: *Allocator,
-    filename: []const u8,
     pub width: usize,
     pub height: usize,
     pub pixels: ?[]ColorU8,
+    pub pixels_owned: bool,
 
-    pub fn init(pAllocator: *Allocator, filename: []const u8) Self {
+    pub fn init(pAllocator: *Allocator) Self {
         return Self {
             .pAllocator = pAllocator,
-            .filename = filename,
             .width = 0,
             .height = 0,
             .pixels = null,
+            .pixels_owned = false,
+        };
+    }
+
+    pub fn initPixels(pAllocator: *Allocator, width: usize, height: usize, color: ColorU8) !Self {
+        var count: usize = width * height;
+        var pixels = try pAllocator.alloc(ColorU8, count);
+        var i: usize = 0;
+        while (i < count) : (i += 1) {
+            pixels[i] = color;
+        }
+        return Self {
+            .pAllocator = pAllocator,
+            .width = width,
+            .height = height,
+            .pixels = pixels,
+            .pixels_owned = true,
         };
     }
 
     pub fn deinit(pSelf: *Self) void {
-        if (pSelf.pixels != null) {
+        if ((pSelf.pixels_owned) and (pSelf.pixels != null)) {
             pSelf.pAllocator.free(pSelf.pixels.?);
         }
     }
 
-    pub fn load(pSelf: *Self) !void {
-        var cfilename = try std.cstr.addNullByte(pSelf.pAllocator, pSelf.filename);
+    pub fn loadFile(pSelf: *Self, filename: []const u8) !void {
+        var cfilename = try std.cstr.addNullByte(pSelf.pAllocator, filename);
         defer pSelf.pAllocator.free(cfilename);
 
         var surface = gl.IMG_Load(cfilename.ptr) orelse return error.UnableToLoadImage;
@@ -54,6 +70,7 @@ pub const Texture = struct {
         var pPixels: []const u8 = if (surface.pixels) |p| @ptrCast([*]u8, p)[0..count] else return error.NoPixels;
 
         pSelf.pixels = try pSelf.pAllocator.alloc(ColorU8, count);
+        pSelf.pixels_owned = true;
         var y: usize = 0;
         var line_offset: usize = 0;
         var dest_offset: usize = 0;
