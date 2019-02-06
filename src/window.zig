@@ -51,6 +51,7 @@ const DBG_DrawTriangleInner = false;
 const DBG_ProcessScanLine = false;
 const DBG_ProcessScanLineInner = false;
 const DBG_world_to_screen = false;
+const DBG_drawBitMap = false;
 
 const Entity = struct {
     mesh: Mesh,
@@ -1397,7 +1398,7 @@ fn drawBitMap(image: *[HEIGHT][WIDTH]u8, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zc
     var glyph_height: Zcint = @intCast(Zcint, bitmap.rows);
     var x_max: Zcint = x + glyph_width;
     var y_max: Zcint = y + glyph_height;
-    if (DBG) warn("drawBitMap: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
+    if (DBG_drawBitMap) warn("drawBitMap: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
         x, y, x_max, y_max, glyph_width, glyph_height, bitmap.buffer);
 
     i = x;
@@ -1410,13 +1411,13 @@ fn drawBitMap(image: *[HEIGHT][WIDTH]u8, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zc
                 var idx: usize = @intCast(usize, (q * glyph_width) + p);
                 if (bitmap.buffer == null) return;
                 var ptr: *u8 = @intToPtr(*u8, @ptrToInt(bitmap.buffer.?) + idx);
-                if (DBG) warn("{p}:{x} ", ptr, ptr.*);
+                if (DBG_drawBitMap) warn("{p}:{x} ", ptr, ptr.*);
                 image[@intCast(usize, j)][@intCast(usize, i)] |= ptr.*;
             }
             j += 1;
             q += 1;
         }
-        if (DBG) warn("\n");
+        if (DBG_drawBitMap) warn("\n");
 
         i += 1;
         p += 1;
