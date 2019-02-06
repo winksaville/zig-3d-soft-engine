@@ -40,8 +40,8 @@ const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
-const DBG_RenderUsingMode = false;
-const DBG_RenderUsingModeInner = false;
+const DBG_RenderUsingMode = true;
+const DBG_RenderUsingModeInner = true;
 const DBG_RenderUsingModeWaitForKey = false;
 const DBG_PutPixel = false;
 const DBG_Rotate = false;
@@ -51,7 +51,7 @@ const DBG_DrawTriangleInner = false;
 const DBG_ProcessScanLine = false;
 const DBG_ProcessScanLineInner = false;
 const DBG_world_to_screen = false;
-const DBG_drawBitMap = false;
+const DBG_drawToTexture = true;
 
 const Entity = struct {
     mesh: Mesh,
@@ -1026,9 +1026,9 @@ test "window.keyctrl.pyramid" {
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
-        var texture = Texture.init(pAllocator, "modules/3d-test-resources/bricks2.jpg");
+        var texture = Texture.init(pAllocator);
         defer texture.deinit();
-        try texture.load();
+        try texture.loadFile("modules/3d-test-resources/bricks2.jpg");
 
         var entities = []Entity{
             Entity{
@@ -1371,25 +1371,14 @@ const Zcint = c_int; // mapCtoZigType(c_int);
 const PTS: Zcint = 20;       // 20 "points" for character size 20/64 of inch
 const DPI: Zcint = 100;      // dots per inch
 
-const WIDTH: Zcint =  512;   // display width
-const HEIGHT: Zcint = 512;   // display height
+const WIDTH: Zcint =  128;  // image width
+const HEIGHT: Zcint = 64;   // image height
 
 fn scaledInt(comptime IntType: type, v: f64, scale: IntType) IntType {
      return @floatToInt(IntType, v * @intToFloat(f64, scale));
 }
 
-fn setImage(image: *[HEIGHT][WIDTH]u8, v: u8) void {
-    var x: Zcint = 0;
-    var y: Zcint = 0;
-
-    while (y < HEIGHT) : (y += 1) {
-        while (x < WIDTH) : (x += 1) {
-            image[@intCast(usize, y)][@intCast(usize, x)] = v;
-        }
-    }
-}
-
-fn drawBitMap(image: *[HEIGHT][WIDTH]u8, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint) void {
+fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, color: ColorU8) void {
     var i: Zcint = 0;
     var j: Zcint = 0;
     var p: Zcint = 0;
@@ -1398,7 +1387,7 @@ fn drawBitMap(image: *[HEIGHT][WIDTH]u8, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zc
     var glyph_height: Zcint = @intCast(Zcint, bitmap.rows);
     var x_max: Zcint = x + glyph_width;
     var y_max: Zcint = y + glyph_height;
-    if (DBG_drawBitMap) warn("drawBitMap: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
+    if (DBG_drawToTexture) warn("drawToTexture: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
         x, y, x_max, y_max, glyph_width, glyph_height, bitmap.buffer);
 
     i = x;
@@ -1411,13 +1400,18 @@ fn drawBitMap(image: *[HEIGHT][WIDTH]u8, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zc
                 var idx: usize = @intCast(usize, (q * glyph_width) + p);
                 if (bitmap.buffer == null) return;
                 var ptr: *u8 = @intToPtr(*u8, @ptrToInt(bitmap.buffer.?) + idx);
-                if (DBG_drawBitMap) warn("{p}:{x} ", ptr, ptr.*);
-                image[@intCast(usize, j)][@intCast(usize, i)] |= ptr.*;
+                var grey: f32 = @intToFloat(f32, ptr.*) / 255.0;
+                var r: u8 = @floatToInt(u8, @intToFloat(f32, color.r) * grey);
+                var g: u8 = @floatToInt(u8, @intToFloat(f32, color.g) * grey);
+                var b: u8 = @floatToInt(u8, @intToFloat(f32, color.b) * grey);
+                var c = ColorU8.init(color.a, r, g, b);
+                if (DBG_drawToTexture) warn("{p}:{x}:{} ", ptr, ptr.*, &c);
+                texture.pixels.?[(@intCast(usize, j) * texture.height) + @intCast(usize, i)] = c;
             }
             j += 1;
             q += 1;
         }
-        if (DBG_drawBitMap) warn("\n");
+        if (DBG_drawToTexture) warn("\n");
 
         i += 1;
         p += 1;
@@ -1430,7 +1424,7 @@ fn showImage(window: *Window, image: *[HEIGHT][WIDTH]u8) void {
         var x: Zcint = 0;
         while (x < WIDTH) : (x += 1) {
             var color: u8 = image[@intCast(usize, y)][@intCast(usize, x)];
-            window.drawPointXy(x, y, ColorU8.init(0xff, color, color, color));
+            window.drawPointXy(x, y, ColorU8.init(0xff, color, color, 0x00));
         }
     }
 
@@ -1444,8 +1438,15 @@ test "test-freetype2" {
     defer arena_allocator.deinit();
     var pAllocator = &arena_allocator.allocator;
 
-    var window = try Window.init(pAllocator, WIDTH, HEIGHT, "testWindow");
+    var window = try Window.init(pAllocator, 512, 512, "testWindow");
     defer window.deinit();
+
+    var file_name = "modules/3d-test-resources/unit-plane.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
+
+    var mesh = try createMeshFromBabylonJson(pAllocator, "unit-plane", tree);
+    assert(std.mem.eql(u8, mesh.name, "unit-plane"));
 
     // Setup parameters
 
@@ -1453,7 +1454,7 @@ test "test-freetype2" {
     const cfilename = c"modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationSans-Regular.ttf";
 
     // Convert Rotate angle in radians for font
-    var angleInDegrees = f64(45.0);
+    var angleInDegrees = f64(0.0);
     var angle = (angleInDegrees / 360.0) * math.pi * 2.0;
 
     // Text to display
@@ -1488,19 +1489,9 @@ test "test-freetype2" {
     pen.y = 10 * 64;
 
     // Create and Initialize image
-    var image: [HEIGHT][WIDTH]u8 = undefined;
-    setImage(&image, 0);
+    var texture = try Texture.initPixels(pAllocator, WIDTH, HEIGHT, ColorU8.Black);
 
-    // Verify image is 0
-    var x: Zcint = 0;
-    var y: Zcint = 0;
-    while (y < HEIGHT) : (y += 1) {
-        while (x < WIDTH) : (x += 1) {
-            assert(image[@intCast(usize, y)][@intCast(usize, x)] == 0);
-        }
-    }
-
-    // Loop to print characters to image buffer
+    // Loop to print characters to texture
     var slot: *ft2.FT_GlyphSlot = (pFace.?.glyph) orelse return error.NoGlyphSlot;
     var n: usize = 0;
     while (n < text.len) : (n += 1) {
@@ -1511,17 +1502,31 @@ test "test-freetype2" {
         assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
 
         // Draw the character
-        drawBitMap(&image, &slot.bitmap, slot.bitmap_left, target_height - slot.bitmap_top);
+        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, target_height - slot.bitmap_top, ColorU8.Blue);
 
         // Move the pen
         pen.x += slot.advance.x;
         pen.y += slot.advance.y;
     }
 
+    // Setup camera
+    var camera_position = V3f32.init(0, 4, -5);
+    var camera_target = V3f32.initVal(0);
+    var camera = Camera.init(camera_position, camera_target);
+
     // Black background color
     window.setBgColor(ColorU8.Black);
     window.clear();
-    showImage(&window, &image);
+
+    var entity = Entity {
+        .texture = texture,
+        .mesh = mesh,
+    };
+    var entities = []Entity { entity };
+
+    // Render any entities
+    window.renderUsingMode(RenderMode.Triangles, &camera, entities);
+    window.present();
 
     var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
