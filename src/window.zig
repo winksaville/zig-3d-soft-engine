@@ -1519,7 +1519,7 @@ test "test-freetype2" {
     window.clear();
 
     var entity = Entity {
-        .texture = null, //texture,
+        .texture = texture,
         .mesh = mesh,
     };
     var entities = []Entity { entity };
@@ -1527,7 +1527,7 @@ test "test-freetype2" {
     // Render any entities
     window.renderUsingMode(RenderMode.Triangles, &camera, entities);
     window.present();
-    showTexture(&window, &texture);
+    //showTexture(&window, &texture);
 
     var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
     var timer = try time.Timer.start();
