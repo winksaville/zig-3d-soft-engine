@@ -9,6 +9,8 @@ const geo = @import("../modules/zig-geometry/index.zig");
 const gl = @import("../modules/zig-sdl2/src/index.zig");
 const ColorU8 = @import("../src/color.zig").ColorU8;
 
+const DBG = false;
+
 pub const Texture = struct {
     const Self = @This();
 
@@ -114,11 +116,11 @@ pub const Texture = struct {
         if (pSelf.pixels) |pPixels| {
             var u = @floatToInt(usize, tu * @intToFloat(f32, pSelf.width)) % pSelf.width;
             var v = @floatToInt(usize, tv * @intToFloat(f32, pSelf.height)) % pSelf.height;
-            return pPixels[(v * pSelf.width) + u];
-            //var c = pPixels[(v * pSelf.width) + u];
-            //warn("map: tu={.3} tv={.3} u={} v={} c={}... ", tu, tv, u, v, &c);
 
-            //return c;
+            var c = pPixels[(v * pSelf.width) + u];
+            if (DBG) warn("map: tu={.3} tv={.3} u={} v={} c={}... ", tu, tv, u, v, &c);
+
+            return c;
         } else {
             return defaultColor;
         }
