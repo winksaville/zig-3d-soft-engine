@@ -133,7 +133,7 @@ test "texture.empty" {
     defer arena_allocator.deinit();
     var pAllocator = &arena_allocator.allocator;
 
-    var texture = Texture.init(pAllocator, "");
+    var texture = Texture.init(pAllocator);
     defer texture.deinit();
 }
 
@@ -147,10 +147,9 @@ test "texture.bricks2" {
     defer arena_allocator.deinit();
     var pAllocator = &arena_allocator.allocator;
 
-    var texture = Texture.init(pAllocator, "modules/3d-test-resources/bricks2.jpg");
+    var texture = Texture.init(pAllocator);
     defer texture.deinit();
-
-    try texture.load();
+    try texture.loadFile("modules/3d-test-resources/bricks2.jpg");
 
     assert(texture.pixels != null);
 
