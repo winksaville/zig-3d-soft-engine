@@ -141,7 +141,27 @@ test "texture.known.TODO" {
     // TODO: Add a test with known contents so we truly validate
 }
 
-test "texture.bricks2" {
+test "texture.initPixels" {
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+
+    // Create and Initialize text.pixels
+    var texture = try Texture.initPixels(pAllocator, 1024, 512, ColorU8.Black);
+    defer texture.deinit();
+
+    assert(texture.width == 1024);
+    assert(texture.height == 512);
+    assert(texture.pixels.?[0].r == ColorU8.Black.r);
+    assert(texture.pixels.?[0].g == ColorU8.Black.g);
+    assert(texture.pixels.?[0].b == ColorU8.Black.b);
+}
+
+
+
+test "texture.loadFile.bricks2" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
     defer arena_allocator.deinit();
