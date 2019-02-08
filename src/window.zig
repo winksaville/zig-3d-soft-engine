@@ -40,8 +40,8 @@ const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
-const DBG_RenderUsingMode = true;
-const DBG_RenderUsingModeInner = true;
+const DBG_RenderUsingMode = false;
+const DBG_RenderUsingModeInner = false;
 const DBG_RenderUsingModeWaitForKey = false;
 const DBG_PutPixel = false;
 const DBG_Rotate = false;
@@ -51,7 +51,7 @@ const DBG_DrawTriangleInner = false;
 const DBG_ProcessScanLine = false;
 const DBG_ProcessScanLineInner = false;
 const DBG_world_to_screen = false;
-const DBG_drawToTexture = true;
+const DBG_drawToTexture = false;
 
 const Entity = struct {
     mesh: Mesh,
