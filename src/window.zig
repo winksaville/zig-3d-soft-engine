@@ -886,6 +886,7 @@ test "window.render.cube" {
 
     // Unit cube about 0,0,0
     mesh = try Mesh.init(pAllocator, "mesh1", 8, 12);
+    defer mesh.deinit();
 
     // Unit cube about 0,0,0
     mesh.vertices[0] = Vertex.init(-1, 1, 1);
@@ -962,6 +963,7 @@ test "window.keyctrl.triangle" {
 
         // Triangle
         var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
+        defer mesh.deinit();
         mesh.vertices[0] = Vertex.init(0, 1, 0);
         mesh.vertices[1] = Vertex.init(-1, -1, 0);
         mesh.vertices[2] = Vertex.init(0.5, -0.5, 0);
@@ -993,6 +995,7 @@ test "window.keyctrl.cube" {
         defer tree.deinit();
 
         var mesh = try createMeshFromBabylonJson(pAllocator, "cube", tree);
+        defer mesh.deinit();
         assert(std.mem.eql(u8, mesh.name, "cube"));
 
         var entities = []Entity{
@@ -1024,6 +1027,7 @@ test "window.keyctrl.pyramid" {
         defer tree.deinit();
 
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
+        defer mesh.deinit();
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
         var texture = Texture.init(pAllocator);
@@ -1058,6 +1062,7 @@ test "window.keyctrl.tilted.pyramid" {
         defer tree.deinit();
 
         var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
+        defer mesh.deinit();
         assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
         var entities = []Entity{
@@ -1088,6 +1093,7 @@ test "window.keyctrl.suzanne" {
         defer tree.deinit();
 
         var mesh = try createMeshFromBabylonJson(pAllocator, "suzanne", tree);
+        defer mesh.deinit();
         assert(std.mem.eql(u8, mesh.name, "suzanne"));
         assert(mesh.vertices.len == 507);
         assert(mesh.faces.len == 968);
@@ -1278,6 +1284,7 @@ test "window.bm.suzanne" {
     defer tree.deinit();
 
     var mesh = try createMeshFromBabylonJson(pAllocator, "suzanne", tree);
+    defer mesh.deinit();
     assert(std.mem.eql(u8, mesh.name, "suzanne"));
     assert(mesh.vertices.len == 507);
     assert(mesh.faces.len == 968);
@@ -1446,6 +1453,7 @@ test "test-freetype2" {
     defer tree.deinit();
 
     var mesh = try createMeshFromBabylonJson(pAllocator, "unit-plane", tree);
+    defer mesh.deinit();
     assert(std.mem.eql(u8, mesh.name, "unit-plane"));
 
     // Setup parameters
