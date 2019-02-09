@@ -1420,7 +1420,7 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
                     c = ColorU8.init(color.a, r, g, b);
                 }
                 if (DBG_drawToTexture) warn("<{p}={.1} {},{}={}> ", ptr, grey, j, i, b);
-                texture.pixels.?[(@intCast(usize, j) * texture.height) + @intCast(usize, i)] = c;
+                texture.pixels.?[(@intCast(usize, j) * texture.width) + @intCast(usize, i)] = c;
             }
             j += 1;
             q += 1;
@@ -1437,7 +1437,7 @@ fn showTexture(window: *Window, texture: *Texture) void {
     while (y < texture.height) : (y += 1) {
         var x: usize = 0;
         while (x < texture.width) : (x += 1) {
-            var color = texture.pixels.?[(@intCast(usize, y) * texture.height) + @intCast(usize, x)];
+            var color = texture.pixels.?[(@intCast(usize, y) * texture.width) + @intCast(usize, x)];
             window.drawPointXy(@intCast(isize, x), @intCast(isize, y), color);
         }
     }
@@ -1445,7 +1445,7 @@ fn showTexture(window: *Window, texture: *Texture) void {
     window.present();
 }
 
-test "test-freetype2" {
+test "test-freetype2.show" {
     if (DBG) warn("\n");
 
     // Init Window
@@ -1553,7 +1553,7 @@ test "test-freetype2" {
     }
 }
 
-test "test-freetype2-triangle" {
+test "test-freetype2.triangle" {
     if (DBG) warn("\n");
 
     // Init Window
