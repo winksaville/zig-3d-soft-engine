@@ -554,7 +554,7 @@ pub const Window = struct {
     }
 
     /// Render the entities into the window from the camera's point of view
-    pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, entities: []const Entity) void {
+    pub fn renderUsingMode(pSelf: *Self, renderMode: RenderMode, camera: *const Camera, entities: []const Entity, negate_tnz: bool) void {
         var view_matrix: geo.M44f32 = undefined;
         view_matrix = geo.lookAtLh(&camera.position, &camera.target, &V3f32.unitY());
         if (DBG_RenderUsingMode) warn("view_matrix:\n{}\n", &view_matrix);
@@ -616,18 +616,18 @@ pub const Window = struct {
                         //          https://www.davrous.com/2013/07/18/tutorial-part-6-learning-how-to-write-a-3d-software-engine-in-c-ts-or-js-texture-mapping-back-face-culling-webgl
                         //          it says that perspective isn't being taken into account and some triangles are not drawn when they should be.
                         //
-                        //       2) I have to use "if (transformedNormal > 0) {" for VISIBLE where as in the tutorial code they use
-                        //          "if (transformedNormal < 0) {
-                        //          http://david.blob.core.windows.net/softengine3d/SoftEngineJSPart6Sample2.zip
-                        var transformedNormal = face.normal.transformNormal(&world_to_view_matrix);
-                        if (transformedNormal.z() > 0) {
-                            if (DBG_RenderUsingModeInner) warn("VISIBLE face.normal:{} transformedNormal:{}\n", &face.normal, &transformedNormal);
+                        //       2) I have to "negate_tnz" tnz so the expected triangles are VISIBLE so "if (tnz < 0) {" works.
+                        //          In the tutorial we have "if (transformedNormal < 0) {",
+                        //          see: http://david.blob.core.windows.net/softengine3d/SoftEngineJSPart6Sample2.zip
+                        var tnz = face.normal.transformNormal(&world_to_view_matrix).z();
+                        tnz = if (negate_tnz) -tnz else tnz;
+                        if (tnz < 0) {
+                            if (DBG_RenderUsingModeInner) warn("VISIBLE face.normal:{} tnz:{}\n", &face.normal, &tnz);
 
                             // Transform the vertex's
                             const tva = pSelf.projectRetVertex(va, &transform_matrix, &world_matrix);
                             const tvb = pSelf.projectRetVertex(vb, &transform_matrix, &world_matrix);
                             const tvc = pSelf.projectRetVertex(vc, &transform_matrix, &world_matrix);
-                            if (DBG_RenderUsingModeInner) warn("tva={} tvb={} tvc={}\n", tva.coord, tvb.coord, tvc.coord);
 
                             var colorF32: f32 = undefined;
                             //colorF32 = 0.25 + @intToFloat(f32, i % mesh.faces.len) * (0.75 / @intToFloat(f32, mesh.faces.len));
@@ -635,21 +635,22 @@ pub const Window = struct {
                             var colorU8: u8 = saturateCast(u8, math.round(colorF32 * 256.0));
                             color = ColorU8.init(colorU8, colorU8, colorU8, colorU8);
                             pSelf.drawTriangle(tva, tvb, tvc, color, entity.texture);
+                            if (DBG_RenderUsingModeInner) warn("tva={} tvb={} tvc={} color={}\n", tva.coord, tvb.coord, tvc.coord, &color);
                         } else {
-                            if (DBG_RenderUsingModeInner) warn("HIDDEN  face.normal:{} transformedNormal:{}\n", &face.normal, &transformedNormal);
+                            if (DBG_RenderUsingModeInner) warn("HIDDEN  face.normal:{} tnz:{}\n", &face.normal, &tnz);
                         }
                     },
                 }
                 if (DBG_RenderUsingModeWaitForKey) {
                     pSelf.present();
-                    _ = waitForKey("dt", true);
+                    _ = waitForKey("dt", true, DBG_RenderUsingModeWaitForKey);
                 }
             }
         }
     }
 
     pub fn render(pSelf: *Self, camera: *const Camera, entities: []const Entity) void {
-        renderUsingMode(pSelf, DBG_RenderMode, camera, entities);
+        renderUsingMode(pSelf, DBG_RenderMode, camera, entities, true);
     }
 };
 
@@ -1188,15 +1189,15 @@ var g_ks = KeyState{
 };
 
 /// Wait for a key
-fn waitForKey(s: []const u8, exitOnEscape: bool) *KeyState {
-    if (DBG_RenderUsingModeWaitForKey) warn("{} waitForKey: ...", s);
+fn waitForKey(s: []const u8, exitOnEscape: bool, debug: bool) *KeyState {
+    if (debug) warn("{} waitForKey: ...", s);
 
     g_ks.new_key = false;
     while (g_ks.new_key == false) {
         _ = ie.pollInputEvent(&g_ks, &g_ks.ei);
     }
 
-    if (DBG_RenderUsingModeWaitForKey) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
+    if (debug) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
 
     if (g_ks.code == gl.SDLK_ESCAPE) if (exitOnEscape) std.os.exit(1);
 
@@ -1226,12 +1227,12 @@ fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity)
 
         if (DBG1) warn("camera={}\n", &camera.position);
         if (DBG1) warn("rotation={}\n", entities[0].mesh.rotation);
-        pWindow.renderUsingMode(renderMode, &camera, entities[0..]);
+        pWindow.renderUsingMode(renderMode, &camera, entities[0..], true);
 
         pWindow.present();
 
         // Wait for a key
-        var ks = waitForKey("keyCtrlEntities", false);
+        var ks = waitForKey("keyCtrlEntities", false, false);
 
         // Process the key
 
@@ -1318,7 +1319,7 @@ fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, ent
 
         // Render into a cleared screen
         pWindow.clear();
-        pWindow.renderUsingMode(renderMode, &camera, entities[0..]);
+        pWindow.renderUsingMode(renderMode, &camera, entities[0..], true);
 
         // Disable presenting as it limits framerate
         //pWindow.present();
@@ -1385,7 +1386,7 @@ fn scaledInt(comptime IntType: type, v: f64, scale: IntType) IntType {
      return @floatToInt(IntType, v * @intToFloat(f64, scale));
 }
 
-fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, color: ColorU8) void {
+fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, color: ColorU8, background: ColorU8) void {
     var i: Zcint = 0;
     var j: Zcint = 0;
     var p: Zcint = 0;
@@ -1403,15 +1404,21 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
         j = y;
         q = 0;
         while (j < y_max) {
-            if ((i >= 0) and (j >= 0) and (i < WIDTH) and (j < HEIGHT)) {
+            if ((i >= 0) and (j >= 0) and (i < @intCast(c_int, texture.width)) and (j < @intCast(c_int, texture.height))) {
                 var idx: usize = @intCast(usize, (q * glyph_width) + p);
                 if (bitmap.buffer == null) return;
                 var ptr: *u8 = @intToPtr(*u8, @ptrToInt(bitmap.buffer.?) + idx);
                 var grey: f32 = @intToFloat(f32, ptr.*) / 255.0;
-                var r: u8 = @floatToInt(u8, @intToFloat(f32, color.r) * grey);
-                var g: u8 = @floatToInt(u8, @intToFloat(f32, color.g) * grey);
-                var b: u8 = @floatToInt(u8, @intToFloat(f32, color.b) * grey);
-                var c = ColorU8.init(color.a, r, g, b);
+                var r: u8 = undefined;
+                var g: u8 = undefined;
+                var b: u8 = undefined;
+                var c = background;
+                if (grey > 0) {
+                    r = @floatToInt(u8, @intToFloat(f32, color.r) * grey);
+                    g = @floatToInt(u8, @intToFloat(f32, color.g) * grey);
+                    b = @floatToInt(u8, @intToFloat(f32, color.b) * grey);
+                    c = ColorU8.init(color.a, r, g, b);
+                }
                 if (DBG_drawToTexture) warn("<{p}={.1} {},{}={}> ", ptr, grey, j, i, b);
                 texture.pixels.?[(@intCast(usize, j) * texture.height) + @intCast(usize, i)] = c;
             }
@@ -1439,6 +1446,8 @@ fn showTexture(window: *Window, texture: *Texture) void {
 }
 
 test "test-freetype2" {
+    if (DBG) warn("\n");
+
     // Init Window
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
@@ -1467,9 +1476,6 @@ test "test-freetype2" {
 
     // Text to display
     var text = "pinky";
-
-    // Height of display
-    var target_height = HEIGHT;
 
     // Init FT library
     var pLibrary: ?*ft2.FT_Library = undefined;
@@ -1510,7 +1516,7 @@ test "test-freetype2" {
         assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
 
         // Draw the character
-        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, target_height - slot.bitmap_top, ColorU8.Blue);
+        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, @intCast(c_int, texture.height) - slot.bitmap_top, ColorU8.Blue, ColorU8.Black);
 
         // Move the pen
         pen.x += slot.advance.x;
@@ -1518,11 +1524,147 @@ test "test-freetype2" {
     }
 
     // Setup camera
-    var camera_position = V3f32.init(0, 4, -5);
+    var camera_position = V3f32.init(0, 0, -5);
     var camera_target = V3f32.initVal(0);
     var camera = Camera.init(camera_position, camera_target);
 
     // Black background color
+    window.setBgColor(ColorU8.Black);
+    window.clear();
+
+    var entity = Entity {
+        .texture = null,
+        .mesh = mesh,
+    };
+    var entities = []Entity { entity };
+
+    // Show
+    showTexture(&window, &texture);
+
+    done: while (DBG) {
+        // Wait for a key
+        var ks = waitForKey("keyCtrlEntities", false, true);
+
+        // Stop if ESCAPE
+        switch (ks.code) {
+            gl.SDLK_ESCAPE => break :done,
+            else => {},
+        }
+    }
+}
+
+test "test-freetype2-triangle" {
+    if (DBG) warn("\n");
+
+    // Init Window
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
+
+    var window = try Window.init(pAllocator, 512, 512, "testWindow");
+    defer window.deinit();
+
+    var file_name = "modules/3d-test-resources/unit-plane.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
+
+    // Create a piece of paper to write on.
+    var mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
+    defer mesh.deinit();
+    assert(std.mem.eql(u8, mesh.name, "triangle"));
+    assert(mesh.vertices.len == 3);
+    assert(mesh.faces.len == 1);
+
+    // Centered at 0
+    mesh.position.set(0, 0, 0);
+    mesh.rotation.set(0, 0, 0);
+
+    // upside down triangle
+    // ------
+    // \    /
+    //  \  /
+    //   \/
+    mesh.vertices[0] = Vertex.init(-1, 1, 0);
+    mesh.vertices[1] = Vertex.init(1, 1, 0);
+    mesh.vertices[2] = Vertex.init(0, -1, 0);
+    var face = geo.Face.init(0, 1, 2, geo.computeFaceNormal(mesh.vertices, 0, 1, 2));
+    mesh.faces[0] = face;
+
+    // Since this is a plane the normal for each vertex is the face normal
+    mesh.vertices[0].normal_coord = face.normal;
+    mesh.vertices[1].normal_coord = face.normal;
+    mesh.vertices[2].normal_coord = face.normal;
+
+    // The texture_coord will be the same as the coord
+    mesh.vertices[0].texture_coord = V2f32.init(0, 0);
+    mesh.vertices[1].texture_coord = V2f32.init(0, 1);
+    mesh.vertices[2].texture_coord = V2f32.init(0.5, 1);
+
+    // Setup parameters
+
+    // Filename for font
+    const cfilename = c"modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationSans-Regular.ttf";
+
+    // Convert Rotate angle in radians for font
+    var angleInDegrees = f64(0.0);
+    var angle = (angleInDegrees / 360.0) * math.pi * 2.0;
+
+    // Text to display
+    var text = "pinky";
+
+    // Init FT library
+    var pLibrary: ?*ft2.FT_Library = undefined;
+    assert( ft2.FT_Init_FreeType( &pLibrary ) == 0);
+    defer assert(ft2.FT_Done_FreeType(pLibrary) == 0);
+
+    // Load a type face
+    var pFace: ?*ft2.FT_Face = undefined;
+    assert(ft2.FT_New_Face(pLibrary, cfilename, 0, &pFace) == 0);
+    defer assert(ft2.FT_Done_Face(pFace) == 0);
+
+    // Set character size
+    assert(ft2.FT_Set_Char_Size(pFace, PTS * 64, 0, DPI, 0) == 0);
+
+    // Setup matrix
+    var matrix: ft2.FT_Matrix = undefined;
+    matrix.xx = scaledInt(ft2.FT_Fixed, math.cos(angle), 0x10000);
+    matrix.xy = scaledInt(ft2.FT_Fixed, -math.sin(angle), 0x10000);
+    matrix.yx = scaledInt(ft2.FT_Fixed, math.sin(angle), 0x10000);
+    matrix.yy = scaledInt(ft2.FT_Fixed, math.cos(angle), 0x10000);
+
+    // Setup pen location
+    var pen: ft2.FT_Vector = undefined;
+    pen.x = 10 * 64;
+    pen.y = 10 * 64;
+
+    // Create and Initialize image
+    var texture = try Texture.initPixels(pAllocator, WIDTH, HEIGHT, ColorU8.White);
+
+    // Loop to print characters to texture
+    var slot: *ft2.FT_GlyphSlot = (pFace.?.glyph) orelse return error.NoGlyphSlot;
+    var n: usize = 0;
+    while (n < text.len) : (n += 1) {
+        // Setup transform
+        ft2.FT_Set_Transform(pFace, &matrix, &pen);
+
+        // Load glyph image into slot
+        assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
+
+        // Draw the character
+        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, @intCast(c_int, texture.height) - slot.bitmap_top, ColorU8.Blue, ColorU8.White);
+
+        // Move the pen
+        pen.x += slot.advance.x;
+        pen.y += slot.advance.y;
+    }
+
+    // Setup camera
+    var camera_position = V3f32.init(0, 0, -5);
+    var camera_target = V3f32.initVal(0);
+    var camera = Camera.init(camera_position, camera_target);
+
+    // background color
     window.setBgColor(ColorU8.Black);
     window.clear();
 
@@ -1532,16 +1674,20 @@ test "test-freetype2" {
     };
     var entities = []Entity { entity };
 
-    // Render any entities
-    window.renderUsingMode(RenderMode.Triangles, &camera, entities);
+    showTexture(&window, &texture);
+
+    // Render any entities but I do NOT need to negate_tnz
+    window.renderUsingMode(RenderMode.Triangles, &camera, entities, false);
     window.present();
-    //showTexture(&window, &texture);
 
-    var ms_factor: u64 = time.ns_per_s / time.ms_per_s;
-    var timer = try time.Timer.start();
-    var end_time: u64 = if (DBG or DBG1 or DBG2) (5000 * ms_factor) else (100 * ms_factor);
+    done: while (DBG) {
+        // Wait for a key
+        var ks = waitForKey("keyCtrlEntities", false, true);
 
-    while (true) {
-        if (timer.read() > end_time) break;
+        // Stop if ESCAPE
+        switch (ks.code) {
+            gl.SDLK_ESCAPE => break :done,
+            else => {},
+        }
     }
 }
