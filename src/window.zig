@@ -1390,7 +1390,8 @@ pub fn mapCtoZigType(comptime T: type) type {
 
 const Zcint = c_int; // mapCtoZigType(c_int);
 
-const PTS: Zcint = 20;       // 20 "points" for character size 20/64 of inch
+const POINTS: Zcint = 64;    // 64 points i.e. 1/64 of inch
+const CHAR_SIZE: Zcint = 20;       // 20 "points" for character size 20/64 of inch
 const DPI: Zcint = 100;      // dots per inch
 
 const WIDTH: Zcint =  128;  // image width
@@ -1502,7 +1503,7 @@ test "test-freetype2.show" {
     defer assert(ft2.FT_Done_Face(pFace) == 0);
 
     // Set character size
-    assert(ft2.FT_Set_Char_Size(pFace, PTS * 64, 0, DPI, 0) == 0);
+    assert(ft2.FT_Set_Char_Size(pFace, CHAR_SIZE * POINTS, 0, DPI, 0) == 0);
 
     // Setup matrix
     var matrix: ft2.FT_Matrix = undefined;
@@ -1513,8 +1514,8 @@ test "test-freetype2.show" {
 
     // Setup pen location
     var pen: ft2.FT_Vector = undefined;
-    pen.x = 10 * 64;
-    pen.y = 10 * 64;
+    pen.x = 10 * POINTS;
+    pen.y = 10 * POINTS;
 
     // Create and Initialize image
     var texture = try Texture.initPixels(pAllocator, WIDTH, HEIGHT, ColorU8.Black);
@@ -1631,7 +1632,7 @@ test "test-freetype2.triangle" {
     defer assert(ft2.FT_Done_Face(pFace) == 0);
 
     // Set character size
-    assert(ft2.FT_Set_Char_Size(pFace, PTS * 64, 0, DPI, 0) == 0);
+    assert(ft2.FT_Set_Char_Size(pFace, CHAR_SIZE * POINTS, 0, DPI, 0) == 0);
 
     // Setup matrix
     var matrix: ft2.FT_Matrix = undefined;
@@ -1642,8 +1643,8 @@ test "test-freetype2.triangle" {
 
     // Setup pen location
     var pen: ft2.FT_Vector = undefined;
-    pen.x = 10 * 64;
-    pen.y = 10 * 64;
+    pen.x = 5 * POINTS;   // x = 5 * POINTS to move pen in from "left" side.
+    pen.y = CHAR_SIZE * POINTS; // y = CHAR_SIZE * POINTS to move pen to "bottom" of character
 
     // Create and Initialize image
     var texture = try Texture.initPixels(pAllocator, WIDTH, HEIGHT, ColorU8.White);
@@ -1658,8 +1659,12 @@ test "test-freetype2.triangle" {
         // Load glyph image into slot
         assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
 
-        // Draw the character
-        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, @intCast(c_int, texture.height) - slot.bitmap_top, ColorU8.Blue, ColorU8.White);
+        if (DBG) warn("{c} position: left={} top={} width={} rows={} pitch={}\n", text[n], slot.bitmap_left, slot.bitmap_top, slot.bitmap.width, slot.bitmap.rows, slot.bitmap.pitch);
+        // Draw the character at top of texture
+        var char_top_max: c_int = 40; // Maximum "top" of character
+        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, char_top_max - slot.bitmap_top, ColorU8.Blue, ColorU8.White);
+        // Draw the character at bottom of texture
+        //drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, @intCast(c_int, texture.height) - slot.bitmap_top, ColorU8.Blue, ColorU8.White);
 
         // Move the pen
         pen.x += slot.advance.x;
