@@ -1190,18 +1190,32 @@ var g_ks = KeyState{
 
 /// Wait for a key
 fn waitForKey(s: []const u8, exitOnEscape: bool, debug: bool) *KeyState {
-    if (debug) warn("{} waitForKey: ...", s);
+    if (debug) warn("{}, waiting for key: ...", s);
 
     g_ks.new_key = false;
     while (g_ks.new_key == false) {
         _ = ie.pollInputEvent(&g_ks, &g_ks.ei);
     }
 
-    if (debug) warn("g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
+    if (debug) warn(" g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
 
     if (g_ks.code == gl.SDLK_ESCAPE) if (exitOnEscape) std.os.exit(1);
 
     return &g_ks;
+}
+
+/// Wait for Esc key
+fn waitForEsc(s: []const u8) void {
+    done: while (DBG) {
+        // Wait for a key
+        var ks = waitForKey(s, false, true);
+
+        // Stop if ESCAPE
+        switch (ks.code) {
+            gl.SDLK_ESCAPE => break :done,
+            else => {},
+        }
+    }
 }
 
 fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity) void {
@@ -1541,15 +1555,8 @@ test "test-freetype2.show" {
     // Show
     showTexture(&window, &texture);
 
-    done: while (DBG) {
-        // Wait for a key
-        var ks = waitForKey("keyCtrlEntities", false, true);
-
-        // Stop if ESCAPE
-        switch (ks.code) {
-            gl.SDLK_ESCAPE => break :done,
-            else => {},
-        }
+    if (DBG) {
+        waitForEsc("Prese ESC to stop");
     }
 }
 
@@ -1680,14 +1687,7 @@ test "test-freetype2.triangle" {
     window.renderUsingMode(RenderMode.Triangles, &camera, entities, false);
     window.present();
 
-    done: while (DBG) {
-        // Wait for a key
-        var ks = waitForKey("keyCtrlEntities", false, true);
-
-        // Stop if ESCAPE
-        switch (ks.code) {
-            gl.SDLK_ESCAPE => break :done,
-            else => {},
-        }
+    if (DBG) {
+        waitForEsc("Prese ESC to stop");
     }
 }
