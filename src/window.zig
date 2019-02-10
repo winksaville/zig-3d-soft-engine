@@ -1589,13 +1589,17 @@ test "test-freetype2.triangle" {
     mesh.rotation.set(0, 0, 0);
 
     // upside down triangle
-    // ------
-    // \    /
-    //  \  /
-    //   \/
+    //-1,1    1,1
+    //  _____
+    // |    /
+    // |   /
+    // |  /
+    // | /
+    // |/
+    // -1,-1
     mesh.vertices[0] = Vertex.init(-1, 1, 0);
     mesh.vertices[1] = Vertex.init(1, 1, 0);
-    mesh.vertices[2] = Vertex.init(0, -1, 0);
+    mesh.vertices[2] = Vertex.init(-1, -1, 0);
     var face = geo.Face.init(0, 1, 2, geo.computeFaceNormal(mesh.vertices, 0, 1, 2));
     mesh.faces[0] = face;
 
@@ -1604,10 +1608,20 @@ test "test-freetype2.triangle" {
     mesh.vertices[1].normal_coord = face.normal;
     mesh.vertices[2].normal_coord = face.normal;
 
-    // The texture_coord will be the same as the coord
-    mesh.vertices[0].texture_coord = V2f32.init(0, 0);
-    mesh.vertices[1].texture_coord = V2f32.init(0, 1);
-    mesh.vertices[2].texture_coord = V2f32.init(0.5, 1);
+    // The texture_coord is a unit square and we map the triangle
+    // to the "L" triangle of the texture:
+    // 0,0   1,0
+    //  _____
+    // |    /|
+    // | L / |
+    // |  /  |
+    // | /   |
+    // |/    |
+    // _______
+    // 0,1
+    mesh.vertices[0].texture_coord = V2f32.init(0, 0); // -1, 1
+    mesh.vertices[1].texture_coord = V2f32.init(1, 0); //  1, 1
+    mesh.vertices[2].texture_coord = V2f32.init(0, 1); // -1,-1
 
     // Setup parameters
 
