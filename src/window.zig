@@ -1395,7 +1395,7 @@ const CHAR_SIZE: Zcint = 20;       // 20 "points" for character size 20/64 of in
 const DPI: Zcint = 100;      // dots per inch
 
 const WIDTH: Zcint =  128;  // image width
-const HEIGHT: Zcint = 64;   // image height
+const HEIGHT: Zcint = 128;  // image height
 
 fn scaledInt(comptime IntType: type, v: f64, scale: IntType) IntType {
      return @floatToInt(IntType, v * @intToFloat(f64, scale));
@@ -1700,7 +1700,7 @@ test "test-freetype2.triangle" {
     };
     var entities = []Entity { entity };
 
-    showTexture(&window, &texture);
+    //showTexture(&window, &texture);
 
     // Render any entities but I do NOT need to negate_tnz
     window.renderUsingMode(RenderMode.Triangles, &camera, entities, false);
