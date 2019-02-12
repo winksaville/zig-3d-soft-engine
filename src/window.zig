@@ -1390,13 +1390,39 @@ pub fn mapCtoZigType(comptime T: type) type {
 
 const Zcint = c_int; // mapCtoZigType(c_int);
 
-const POINTS: Zcint = 72;    // 72 points i.e. 1/72 of inch
 const CHAR_SIZE: Zcint = 14; // 14 "points" for character size
 const DPI: Zcint = 140;      // dots per inch of my display
 
-fn scaledInt(comptime IntType: type, v: f64, scale: IntType) IntType {
-     return @floatToInt(IntType, v * @intToFloat(f64, scale));
+fn fixed26_6(whole26: u26, frac6: u6) ft2.FT_F26Dot6 {
+    return @intCast(ft2.FT_F26Dot6, (whole26 << 6) | frac6);
 }
+
+fn f64_fixed26_6(v: f64) ft2.FT_F26Dot6 {
+    return @floatToInt(ft2.FT_F26Dot6, v * @intToFloat(f64, 0x40));
+}
+
+test "fixed26_6" {
+    assert(0x40 == fixed26_6(1, 0));
+    assert(fixed26_6(1, 0) == f64_fixed26_6(1.0));
+    assert(fixed26_6(1, 0x20) == f64_fixed26_6(1.5));
+    assert(fixed26_6(2, 0) == f64_fixed26_6(2));
+}
+
+fn fixed16_16(whole16: u16, frac16: u16) ft2.FT_Fixed {
+    return @intCast(ft2.FT_Fixed, (@intCast(u32, whole16) << 16) | @intCast(u32, frac16));
+}
+
+fn f64_fixed16_16(v: f64) ft2.FT_Fixed {
+    return @floatToInt(ft2.FT_Fixed, v * @intToFloat(f64, 0x10000));
+}
+
+test "fixed16_16" {
+    assert(0x10000 == fixed16_16(1, 0));
+    assert(fixed16_16(1, 0) == f64_fixed16_16(1.0));
+    assert(fixed16_16(1, 0x8000) == f64_fixed16_16(1.5));
+    assert(fixed16_16(2, 0) == f64_fixed16_16(2));
+}
+
 
 fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, color: ColorU8, background: ColorU8) void {
     var i: Zcint = 0;
@@ -1430,8 +1456,8 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
                     g = @floatToInt(u8, @intToFloat(f32, color.g) * grey);
                     b = @floatToInt(u8, @intToFloat(f32, color.b) * grey);
                     c = ColorU8.init(color.a, r, g, b);
+                    if (DBG_drawToTexture and (grey != 0.0)) warn("<[{},{}]={}:{}> ", j, i, ptr.*, b);
                 }
-                if (DBG_drawToTexture) warn("<{p}={.1} {},{}={}> ", ptr, grey, j, i, b);
                 texture.pixels.?[(@intCast(usize, j) * texture.width) + @intCast(usize, i)] = c;
             }
             j += 1;
@@ -1548,19 +1574,19 @@ test "test-freetype2" {
     defer assert(ft2.FT_Done_Face(pFace) == 0);
 
     // Set character size
-    assert(ft2.FT_Set_Char_Size(pFace, CHAR_SIZE * POINTS, 0, DPI, 0) == 0);
+    assert(ft2.FT_Set_Char_Size(pFace, fixed26_6(CHAR_SIZE, 0), 0, DPI, DPI) == 0);
 
     // Setup matrix
     var matrix: ft2.FT_Matrix = undefined;
-    matrix.xx = scaledInt(ft2.FT_Fixed, math.cos(angle), 0x10000);
-    matrix.xy = scaledInt(ft2.FT_Fixed, -math.sin(angle), 0x10000);
-    matrix.yx = scaledInt(ft2.FT_Fixed, math.sin(angle), 0x10000);
-    matrix.yy = scaledInt(ft2.FT_Fixed, math.cos(angle), 0x10000);
+    matrix.xx = f64_fixed16_16(math.cos(angle));
+    matrix.xy = f64_fixed16_16(-math.sin(angle));
+    matrix.yx = f64_fixed16_16(math.sin(angle));
+    matrix.yy = f64_fixed16_16(math.cos(angle));
 
     // Setup pen location
     var pen: ft2.FT_Vector = undefined;
-    pen.x = 5 * POINTS;   // x = 5 * POINTS to move pen in from "left" side.
-    pen.y = CHAR_SIZE * POINTS; // y = CHAR_SIZE * POINTS to move pen to "bottom" of character
+    pen.x = f64_fixed26_6(5);   // x = 5 points from left side
+    pen.y = f64_fixed26_6(CHAR_SIZE); // y = CHAR_SIZE in points from top
 
     // Create and Initialize texture
     var texture = try Texture.initPixels(pAllocator, 600, 600, ColorU8.White);
