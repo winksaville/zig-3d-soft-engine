@@ -1445,18 +1445,20 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
             if ((i >= 0) and (j >= 0) and (i < @intCast(c_int, texture.width)) and (j < @intCast(c_int, texture.height))) {
                 var idx: usize = @intCast(usize, (q * glyph_width) + p);
                 if (bitmap.buffer == null) return;
+
+                // From http://web.comhem.se/~u34598116/content/FreeType2/main.html
                 var ptr: *u8 = @intToPtr(*u8, @ptrToInt(bitmap.buffer.?) + idx);
-                var grey: f32 = @intToFloat(f32, ptr.*) / 255.0;
+                var opacity: f32 = @intToFloat(f32, ptr.*) / 255.0;
                 var r: u8 = undefined;
                 var g: u8 = undefined;
                 var b: u8 = undefined;
                 var c = background;
-                if (grey > 0) {
-                    r = @floatToInt(u8, @intToFloat(f32, color.r) * grey);
-                    g = @floatToInt(u8, @intToFloat(f32, color.g) * grey);
-                    b = @floatToInt(u8, @intToFloat(f32, color.b) * grey);
+                if (opacity > 0) {
+                    r = @floatToInt(u8, (@intToFloat(f32, color.r) * opacity) + ((f32(1.0) - opacity) * @intToFloat(f32, background.r)));
+                    g = @floatToInt(u8, (@intToFloat(f32, color.g) * opacity) + ((f32(1.0) - opacity) * @intToFloat(f32, background.g)));
+                    b = @floatToInt(u8, (@intToFloat(f32, color.b) * opacity) + ((f32(1.0) - opacity) * @intToFloat(f32, background.b)));
                     c = ColorU8.init(color.a, r, g, b);
-                    if (DBG_drawToTexture and (grey != 0.0)) warn("<[{},{}]={}:{}> ", j, i, ptr.*, b);
+                    if (DBG_drawToTexture) warn("<[{},{}]={.2}:{}> ", j, i, opacity, b);
                 }
                 texture.pixels.?[(@intCast(usize, j) * texture.width) + @intCast(usize, i)] = c;
             }
@@ -1484,6 +1486,7 @@ fn showTexture(window: *Window, texture: *Texture) void {
 }
 
 test "test-freetype2" {
+    // Based on https://www.freetype.org/freetype2/docs/tutorial/example1.c
     if (DBG) warn("\n");
 
     // Init Window
