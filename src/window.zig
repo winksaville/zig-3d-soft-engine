@@ -1390,12 +1390,9 @@ pub fn mapCtoZigType(comptime T: type) type {
 
 const Zcint = c_int; // mapCtoZigType(c_int);
 
-const POINTS: Zcint = 64;    // 64 points i.e. 1/64 of inch
-const CHAR_SIZE: Zcint = 20;       // 20 "points" for character size 20/64 of inch
-const DPI: Zcint = 100;      // dots per inch
-
-const WIDTH: Zcint =  128;  // image width
-const HEIGHT: Zcint = 128;  // image height
+const POINTS: Zcint = 72;    // 72 points i.e. 1/72 of inch
+const CHAR_SIZE: Zcint = 14; // 14 "points" for character size
+const DPI: Zcint = 140;      // dots per inch of my display
 
 fn scaledInt(comptime IntType: type, v: f64, scale: IntType) IntType {
      return @floatToInt(IntType, v * @intToFloat(f64, scale));
@@ -1460,7 +1457,7 @@ fn showTexture(window: *Window, texture: *Texture) void {
     window.present();
 }
 
-test "test-freetype2.show" {
+test "test-freetype2" {
     if (DBG) warn("\n");
 
     // Init Window
@@ -1469,113 +1466,8 @@ test "test-freetype2.show" {
     defer arena_allocator.deinit();
     var pAllocator = &arena_allocator.allocator;
 
-    var window = try Window.init(pAllocator, 512, 512, "testWindow");
+    var window = try Window.init(pAllocator, 1024, 1024, "testWindow");
     defer window.deinit();
-
-    var file_name = "modules/3d-test-resources/unit-plane.babylon";
-    var tree = try parseJsonFile(pAllocator, file_name);
-    defer tree.deinit();
-
-    var mesh = try createMeshFromBabylonJson(pAllocator, "unit-plane", tree);
-    defer mesh.deinit();
-    assert(std.mem.eql(u8, mesh.name, "unit-plane"));
-
-    // Setup parameters
-
-    // Filename for font
-    const cfilename = c"modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationSans-Regular.ttf";
-
-    // Convert Rotate angle in radians for font
-    var angleInDegrees = f64(0.0);
-    var angle = (angleInDegrees / 360.0) * math.pi * 2.0;
-
-    // Text to display
-    var text = "pinky";
-
-    // Init FT library
-    var pLibrary: ?*ft2.FT_Library = undefined;
-    assert( ft2.FT_Init_FreeType( &pLibrary ) == 0);
-    defer assert(ft2.FT_Done_FreeType(pLibrary) == 0);
-
-    // Load a type face
-    var pFace: ?*ft2.FT_Face = undefined;
-    assert(ft2.FT_New_Face(pLibrary, cfilename, 0, &pFace) == 0);
-    defer assert(ft2.FT_Done_Face(pFace) == 0);
-
-    // Set character size
-    assert(ft2.FT_Set_Char_Size(pFace, CHAR_SIZE * POINTS, 0, DPI, 0) == 0);
-
-    // Setup matrix
-    var matrix: ft2.FT_Matrix = undefined;
-    matrix.xx = scaledInt(ft2.FT_Fixed, math.cos(angle), 0x10000);
-    matrix.xy = scaledInt(ft2.FT_Fixed, -math.sin(angle), 0x10000);
-    matrix.yx = scaledInt(ft2.FT_Fixed, math.sin(angle), 0x10000);
-    matrix.yy = scaledInt(ft2.FT_Fixed, math.cos(angle), 0x10000);
-
-    // Setup pen location
-    var pen: ft2.FT_Vector = undefined;
-    pen.x = 10 * POINTS;
-    pen.y = 10 * POINTS;
-
-    // Create and Initialize image
-    var texture = try Texture.initPixels(pAllocator, WIDTH, HEIGHT, ColorU8.Black);
-
-    // Loop to print characters to texture
-    var slot: *ft2.FT_GlyphSlot = (pFace.?.glyph) orelse return error.NoGlyphSlot;
-    var n: usize = 0;
-    while (n < text.len) : (n += 1) {
-        // Setup transform
-        ft2.FT_Set_Transform(pFace, &matrix, &pen);
-
-        // Load glyph image into slot
-        assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
-
-        // Draw the character
-        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, @intCast(c_int, texture.height) - slot.bitmap_top, ColorU8.Blue, ColorU8.Black);
-
-        // Move the pen
-        pen.x += slot.advance.x;
-        pen.y += slot.advance.y;
-    }
-
-    // Setup camera
-    var camera_position = V3f32.init(0, 0, -5);
-    var camera_target = V3f32.initVal(0);
-    var camera = Camera.init(camera_position, camera_target);
-
-    // Black background color
-    window.setBgColor(ColorU8.Black);
-    window.clear();
-
-    var entity = Entity {
-        .texture = null,
-        .mesh = mesh,
-    };
-    var entities = []Entity { entity };
-
-    // Show
-    showTexture(&window, &texture);
-
-    if (DBG) {
-        waitForEsc("Prese ESC to stop");
-    }
-}
-
-test "test-freetype2.triangle" {
-    if (DBG) warn("\n");
-
-    // Init Window
-    var direct_allocator = std.heap.DirectAllocator.init();
-    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-    defer arena_allocator.deinit();
-    var pAllocator = &arena_allocator.allocator;
-
-    var window = try Window.init(pAllocator, 512, 512, "testWindow");
-    defer window.deinit();
-
-    var file_name = "modules/3d-test-resources/unit-plane.babylon";
-    var tree = try parseJsonFile(pAllocator, file_name);
-    defer tree.deinit();
 
     // Create a piece of paper to write on.
     var mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
@@ -1584,7 +1476,7 @@ test "test-freetype2.triangle" {
     assert(mesh.vertices.len == 3);
     assert(mesh.faces.len == 1);
 
-    // Centered at 0
+    // Position and orient the Mesh
     mesh.position.set(0, 0, 0);
     mesh.rotation.set(0, 0, 0);
 
@@ -1626,14 +1518,14 @@ test "test-freetype2.triangle" {
     // Setup parameters
 
     // Filename for font
-    const cfilename = c"modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationSans-Regular.ttf";
+    const cfilename = c"modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationMono-Regular.ttf";
 
     // Convert Rotate angle in radians for font
     var angleInDegrees = f64(0.0);
     var angle = (angleInDegrees / 360.0) * math.pi * 2.0;
 
     // Text to display
-    var text = "pinky";
+    var text = "abcdefghijklmnopqrstuvwxyz";
 
     // Init FT library
     var pLibrary: ?*ft2.FT_Library = undefined;
@@ -1660,8 +1552,8 @@ test "test-freetype2.triangle" {
     pen.x = 5 * POINTS;   // x = 5 * POINTS to move pen in from "left" side.
     pen.y = CHAR_SIZE * POINTS; // y = CHAR_SIZE * POINTS to move pen to "bottom" of character
 
-    // Create and Initialize image
-    var texture = try Texture.initPixels(pAllocator, WIDTH, HEIGHT, ColorU8.White);
+    // Create and Initialize texture
+    var texture = try Texture.initPixels(pAllocator, 600, 600, ColorU8.White);
 
     // Loop to print characters to texture
     var slot: *ft2.FT_GlyphSlot = (pFace.?.glyph) orelse return error.NoGlyphSlot;
@@ -1673,12 +1565,15 @@ test "test-freetype2.triangle" {
         // Load glyph image into slot
         assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
 
-        if (DBG) warn("{c} position: left={} top={} width={} rows={} pitch={}\n", text[n], slot.bitmap_left, slot.bitmap_top, slot.bitmap.width, slot.bitmap.rows, slot.bitmap.pitch);
+        if (DBG) {
+            warn("{c} position: left={} top={} width={} rows={} pitch={} adv_x={} hAdv={} hBearingX=={}\n",
+                text[n], slot.bitmap_left, slot.bitmap_top, slot.bitmap.width, slot.bitmap.rows, slot.bitmap.pitch,
+                slot.advance.x, slot.metrics.horiAdvance, slot.metrics.horiBearingX);
+        }
+
         // Draw the character at top of texture
-        var char_top_max: c_int = 40; // Maximum "top" of character
-        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, char_top_max - slot.bitmap_top, ColorU8.Blue, ColorU8.White);
-        // Draw the character at bottom of texture
-        //drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, @intCast(c_int, texture.height) - slot.bitmap_top, ColorU8.Blue, ColorU8.White);
+        var line_spacing: c_int = 50; // > Maximum "top" of character
+        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, line_spacing - slot.bitmap_top, ColorU8.Black, ColorU8.White);
 
         // Move the pen
         pen.x += slot.advance.x;
