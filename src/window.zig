@@ -1469,12 +1469,12 @@ test "test-freetype2" {
     var window = try Window.init(pAllocator, 1024, 1024, "testWindow");
     defer window.deinit();
 
-    // Create a piece of paper to write on.
-    var mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
+    // Create a plane to write on.
+    var mesh = try Mesh.init(pAllocator, "square", 4, 2);
     defer mesh.deinit();
-    assert(std.mem.eql(u8, mesh.name, "triangle"));
-    assert(mesh.vertices.len == 3);
-    assert(mesh.faces.len == 1);
+    assert(std.mem.eql(u8, mesh.name, "square"));
+    assert(mesh.vertices.len == 4);
+    assert(mesh.faces.len == 2);
 
     // Position and orient the Mesh
     mesh.position.set(0, 0, 0);
@@ -1483,37 +1483,47 @@ test "test-freetype2" {
     // upside down triangle
     //-1,1    1,1
     //  _____
-    // |    /
-    // |   /
-    // |  /
-    // | /
-    // |/
-    // -1,-1
+    // |    /|
+    // |   / |
+    // |  /  |
+    // | /   |
+    // |/    |
+    //  _____
+    // -1,-1  1,-1
     mesh.vertices[0] = Vertex.init(-1, 1, 0);
     mesh.vertices[1] = Vertex.init(1, 1, 0);
     mesh.vertices[2] = Vertex.init(-1, -1, 0);
-    var face = geo.Face.init(0, 1, 2, geo.computeFaceNormal(mesh.vertices, 0, 1, 2));
-    mesh.faces[0] = face;
+    mesh.vertices[3] = Vertex.init(1, -1, 0);
 
-    // Since this is a plane the normal for each vertex is the face normal
-    mesh.vertices[0].normal_coord = face.normal;
-    mesh.vertices[1].normal_coord = face.normal;
-    mesh.vertices[2].normal_coord = face.normal;
+    // Compute the normal for the face and since both faces
+    // are in the same plane the normal is the same.
+    var normal = geo.computeFaceNormal(mesh.vertices, 0, 1, 2);
 
-    // The texture_coord is a unit square and we map the triangle
-    // to the "L" triangle of the texture:
+    // Define the two faces and since this is a planeand the face normal is the same for both
+    mesh.faces[0] = geo.Face.init(0, 1, 2, normal);
+    mesh.faces[1] = geo.Face.init(1, 3, 2, normal);
+
+    // In addition, since this is a plane all the vertice normals are the same as the face normal
+    mesh.vertices[0].normal_coord = normal;
+    mesh.vertices[1].normal_coord = normal;
+    mesh.vertices[2].normal_coord = normal;
+    mesh.vertices[3].normal_coord = normal;
+
+    // The texture_coord is a unit square and we map to the two triangles
+    // "L" and "R":
     // 0,0   1,0
     //  _____
     // |    /|
     // | L / |
     // |  /  |
-    // | /   |
+    // | / R |
     // |/    |
     // _______
-    // 0,1
+    // 0,1   1,1
     mesh.vertices[0].texture_coord = V2f32.init(0, 0); // -1, 1
     mesh.vertices[1].texture_coord = V2f32.init(1, 0); //  1, 1
     mesh.vertices[2].texture_coord = V2f32.init(0, 1); // -1,-1
+    mesh.vertices[3].texture_coord = V2f32.init(1, 1); //  1,-1
 
     // Setup parameters
 
@@ -1573,7 +1583,7 @@ test "test-freetype2" {
 
         // Draw the character at top of texture
         var line_spacing: c_int = 50; // > Maximum "top" of character
-        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, line_spacing - slot.bitmap_top, ColorU8.Black, ColorU8.White);
+        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, (6 * line_spacing) - slot.bitmap_top, ColorU8.Black, ColorU8.White);
 
         // Move the pen
         pen.x += slot.advance.x;
