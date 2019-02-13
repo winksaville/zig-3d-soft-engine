@@ -49,7 +49,7 @@ const DBG_RenderUsingModeWaitForKey = false;
 const DBG_Rotate = false;
 const DBG_Translate = false;
 const DBG_world_to_screen = false;
-const DBG_drawToTexture = false;
+const DBG_ft_bitmapToTexture = false;
 
 test "window" {
     var direct_allocator = std.heap.DirectAllocator.init();
@@ -680,89 +680,19 @@ fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, ent
 
 const ft2 = @import("../modules/zig-freetype2/freetype2.zig");
 
-fn mapCtoZigTypeFloat(comptime T: type) type {
-    return switch (@sizeOf(T)) {
-        2 => f16,
-        4 => f32,
-        8 => f64,
-        else => @compileError("Unsupported float type"),
-    };
-}
+const CHAR_SIZE: usize = 14; // 14 "points" for character size
+const DPI: usize = 140;      // dots per inch of my display
 
-fn mapCtoZigTypeInt(comptime T: type) type {
-    if (T.is_signed) {
-        return switch (@sizeOf(T)) {
-            1 => i8,
-            2 => i16,
-            4 => i32,
-            8 => i64,
-            else => @compileError("Unsupported signed integer type"),
-        };
-    } else {
-        return switch (@sizeOf(T)) {
-            1 => u8,
-            2 => u16,
-            4 => u32,
-            8 => u64,
-            else => @compileError("Unsupported unsigned integer type"),
-        };
-    }
-}
-
-pub fn mapCtoZigType(comptime T: type) type {
-    return switch (@typeId(T)) {
-        TypeId.Int => mapCtoZigTypeInt(T),
-        TypeId.Float => mapCtoZigTypeFloat(T),
-        else => @compileError("Only TypeId.Int and TypeId.Float are supported"),
-    };
-}
-
-const Zcint = c_int; // mapCtoZigType(c_int);
-
-const CHAR_SIZE: Zcint = 14; // 14 "points" for character size
-const DPI: Zcint = 140;      // dots per inch of my display
-
-fn fixed26_6(whole26: u26, frac6: u6) ft2.FT_F26Dot6 {
-    return @intCast(ft2.FT_F26Dot6, (whole26 << 6) | frac6);
-}
-
-fn f64_fixed26_6(v: f64) ft2.FT_F26Dot6 {
-    return @floatToInt(ft2.FT_F26Dot6, v * @intToFloat(f64, 0x40));
-}
-
-test "fixed26_6" {
-    assert(0x40 == fixed26_6(1, 0));
-    assert(fixed26_6(1, 0) == f64_fixed26_6(1.0));
-    assert(fixed26_6(1, 0x20) == f64_fixed26_6(1.5));
-    assert(fixed26_6(2, 0) == f64_fixed26_6(2));
-}
-
-fn fixed16_16(whole16: u16, frac16: u16) ft2.FT_Fixed {
-    return @intCast(ft2.FT_Fixed, (@intCast(u32, whole16) << 16) | @intCast(u32, frac16));
-}
-
-fn f64_fixed16_16(v: f64) ft2.FT_Fixed {
-    return @floatToInt(ft2.FT_Fixed, v * @intToFloat(f64, 0x10000));
-}
-
-test "fixed16_16" {
-    assert(0x10000 == fixed16_16(1, 0));
-    assert(fixed16_16(1, 0) == f64_fixed16_16(1.0));
-    assert(fixed16_16(1, 0x8000) == f64_fixed16_16(1.5));
-    assert(fixed16_16(2, 0) == f64_fixed16_16(2));
-}
-
-
-fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, color: ColorU8, background: ColorU8) void {
-    var i: Zcint = 0;
-    var j: Zcint = 0;
-    var p: Zcint = 0;
-    var q: Zcint = 0;
-    var glyph_width: Zcint = @intCast(Zcint, bitmap.width);
-    var glyph_height: Zcint = @intCast(Zcint, bitmap.rows);
-    var x_max: Zcint = x + glyph_width;
-    var y_max: Zcint = y + glyph_height;
-    if (DBG_drawToTexture) warn("drawToTexture: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
+fn ft_bitmapToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: usize, y: usize, color: ColorU8, background: ColorU8) void {
+    var i: usize = 0;
+    var j: usize = 0;
+    var p: usize = 0;
+    var q: usize = 0;
+    var glyph_width: usize = @intCast(usize, bitmap.width);
+    var glyph_height: usize = @intCast(usize, bitmap.rows);
+    var x_max: usize = x + glyph_width;
+    var y_max: usize = y + glyph_height;
+    if (DBG_ft_bitmapToTexture) warn("ft_bitmapToTexture: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
         x, y, x_max, y_max, glyph_width, glyph_height, bitmap.buffer);
 
     i = x;
@@ -771,7 +701,7 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
         j = y;
         q = 0;
         while (j < y_max) {
-            if ((i >= 0) and (j >= 0) and (i < @intCast(c_int, texture.width)) and (j < @intCast(c_int, texture.height))) {
+            if ((i >= 0) and (j >= 0) and (i < texture.width) and (j < texture.height)) {
                 var idx: usize = @intCast(usize, (q * glyph_width) + p);
                 if (bitmap.buffer == null) return;
 
@@ -787,14 +717,14 @@ fn drawToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: Zcint, y: Zcint, 
                     g = @floatToInt(u8, (@intToFloat(f32, color.g) * opacity) + ((f32(1.0) - opacity) * @intToFloat(f32, background.g)));
                     b = @floatToInt(u8, (@intToFloat(f32, color.b) * opacity) + ((f32(1.0) - opacity) * @intToFloat(f32, background.b)));
                     c = ColorU8.init(color.a, r, g, b);
-                    if (DBG_drawToTexture) warn("<[{},{}]={.2}:{}> ", j, i, opacity, b);
+                    if (DBG_ft_bitmapToTexture) warn("<[{},{}]={.2}:{}> ", j, i, opacity, b);
                 }
-                texture.pixels.?[(@intCast(usize, j) * texture.width) + @intCast(usize, i)] = c;
+                texture.pixels.?[(j * texture.width) + i] = c;
             }
             j += 1;
             q += 1;
         }
-        if (DBG_drawToTexture) warn("\n");
+        if (DBG_ft_bitmapToTexture) warn("\n");
 
         i += 1;
         p += 1;
@@ -806,7 +736,7 @@ fn showTexture(window: *Window, texture: *Texture) void {
     while (y < texture.height) : (y += 1) {
         var x: usize = 0;
         while (x < texture.width) : (x += 1) {
-            var color = texture.pixels.?[(@intCast(usize, y) * texture.width) + @intCast(usize, x)];
+            var color = texture.pixels.?[(y * texture.width) + x];
             window.drawPointXy(@intCast(isize, x), @intCast(isize, y), color);
         }
     }
@@ -906,19 +836,19 @@ test "test-freetype2" {
     defer assert(ft2.FT_Done_Face(pFace) == 0);
 
     // Set character size
-    assert(ft2.FT_Set_Char_Size(pFace, fixed26_6(CHAR_SIZE, 0), 0, DPI, DPI) == 0);
+    assert(ft2.FT_Set_Char_Size(pFace, ft2.fixed26_6(CHAR_SIZE, 0), 0, DPI, DPI) == 0);
 
     // Setup matrix
     var matrix: ft2.FT_Matrix = undefined;
-    matrix.xx = f64_fixed16_16(math.cos(angle));
-    matrix.xy = f64_fixed16_16(-math.sin(angle));
-    matrix.yx = f64_fixed16_16(math.sin(angle));
-    matrix.yy = f64_fixed16_16(math.cos(angle));
+    matrix.xx = ft2.f64_fixed16_16(math.cos(angle));
+    matrix.xy = ft2.f64_fixed16_16(-math.sin(angle));
+    matrix.yx = ft2.f64_fixed16_16(math.sin(angle));
+    matrix.yy = ft2.f64_fixed16_16(math.cos(angle));
 
     // Setup pen location
     var pen: ft2.FT_Vector = undefined;
-    pen.x = f64_fixed26_6(5);   // x = 5 points from left side
-    pen.y = f64_fixed26_6(CHAR_SIZE); // y = CHAR_SIZE in points from top
+    pen.x = ft2.f64_fixed26_6(5);   // x = 5 points from left side
+    pen.y = ft2.f64_fixed26_6(CHAR_SIZE); // y = CHAR_SIZE in points from top
 
     // Create and Initialize texture
     var texture = try Texture.initPixels(pAllocator, 600, 600, ColorU8.White);
@@ -940,8 +870,8 @@ test "test-freetype2" {
         }
 
         // Draw the character at top of texture
-        var line_spacing: c_int = 50; // > Maximum "top" of character
-        drawToTexture(&texture, &slot.bitmap, slot.bitmap_left, (6 * line_spacing) - slot.bitmap_top, ColorU8.Black, ColorU8.White);
+        var line_spacing: usize = 50; // > Maximum "top" of character
+        ft_bitmapToTexture(&texture, &slot.bitmap, @intCast(usize, slot.bitmap_left), (6 * line_spacing) - @intCast(usize, slot.bitmap_top), ColorU8.Black, ColorU8.White);
 
         // Move the pen
         pen.x += slot.advance.x;
