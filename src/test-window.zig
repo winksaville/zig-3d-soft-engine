@@ -329,7 +329,10 @@ test "window.render.cube" {
     while (true) {
         window.clear();
 
-        if (DBG1) warn("rotation={.5}:{.5}:{.5}\n", entities[0].mesh.rotation.x(), entities[0].mesh.rotation.y(), entities[0].mesh.rotation.z());
+        if (DBG1) {
+            warn("rotation={.5}:{.5}:{.5}\n", entities[0].mesh.rotation.x(),
+                entities[0].mesh.rotation.y(), entities[0].mesh.rotation.z());
+        }
         window.render(&camera, entities);
 
         var center = V2f32.init(window.widthf / 2, window.heightf / 2);
@@ -871,7 +874,8 @@ test "test-freetype2" {
 
         // Draw the character at top of texture
         var line_spacing: usize = 50; // > Maximum "top" of character
-        ft_bitmapToTexture(&texture, &slot.bitmap, @intCast(usize, slot.bitmap_left), (6 * line_spacing) - @intCast(usize, slot.bitmap_top), ColorU8.Black, ColorU8.White);
+        ft_bitmapToTexture(&texture, &slot.bitmap, @intCast(usize, slot.bitmap_left),
+            (6 * line_spacing) - @intCast(usize, slot.bitmap_top), ColorU8.Black, ColorU8.White);
 
         // Move the pen
         pen.x += slot.advance.x;
