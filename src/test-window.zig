@@ -41,7 +41,7 @@ const Entity = windowns.Entity;
 const RenderMode = windowns.RenderMode;
 const Window = windowns.Window;
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
@@ -348,163 +348,152 @@ test "window.render.cube" {
 
 
 test "window.keyctrl.triangle" {
-    if (DBG) {
-        var direct_allocator = std.heap.DirectAllocator.init();
-        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-        defer arena_allocator.deinit();
-        var pAllocator = &arena_allocator.allocator;
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
-        defer window.deinit();
+    var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+    defer window.deinit();
 
-        // Black background color
-        window.setBgColor(ColorU8.Black);
+    // Black background color
+    window.setBgColor(ColorU8.Black);
 
-        // Triangle
-        var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
-        defer mesh.deinit();
-        mesh.vertices[0] = Vertex.init(0, 1, 0);
-        mesh.vertices[1] = Vertex.init(-1, -1, 0);
-        mesh.vertices[2] = Vertex.init(0.5, -0.5, 0);
+    // Triangle
+    var mesh: Mesh = try Mesh.init(pAllocator, "triangle", 3, 1);
+    defer mesh.deinit();
+    mesh.vertices[0] = Vertex.init(0, 1, 0);
+    mesh.vertices[1] = Vertex.init(-1, -1, 0);
+    mesh.vertices[2] = Vertex.init(0.5, -0.5, 0);
 
-        mesh.faces[0] = Face.initComputeNormal(mesh.vertices, 0, 1, 2);
+    mesh.faces[0] = Face.initComputeNormal(mesh.vertices, 0, 1, 2);
 
-        var entities = []Entity{
-            Entity{
-                .texture = null,
-                .mesh = mesh,
-            },
-        };
-        keyCtrlEntities(&window, RenderMode.Points, entities[0..]);
-    }
+    var entities = []Entity{
+        Entity{
+            .texture = null,
+            .mesh = mesh,
+        },
+    };
+    keyCtrlEntities(&window, RenderMode.Points, entities[0..], !DBG);
 }
 
 test "window.keyctrl.cube" {
-    if (DBG) {
-        var direct_allocator = std.heap.DirectAllocator.init();
-        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-        defer arena_allocator.deinit();
-        var pAllocator = &arena_allocator.allocator;
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 1000, 1000, "render.cube");
-        defer window.deinit();
+    var window = try Window.init(pAllocator, 1000, 1000, "render.cube");
+    defer window.deinit();
 
-        var file_name = "modules/3d-test-resources/cube.babylon";
-        var tree = try parseJsonFile(pAllocator, file_name);
-        defer tree.deinit();
+    var file_name = "modules/3d-test-resources/cube.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
 
-        var mesh = try createMeshFromBabylonJson(pAllocator, "cube", tree);
-        defer mesh.deinit();
-        assert(std.mem.eql(u8, mesh.name, "cube"));
+    var mesh = try createMeshFromBabylonJson(pAllocator, "cube", tree);
+    defer mesh.deinit();
+    assert(std.mem.eql(u8, mesh.name, "cube"));
 
-        var entities = []Entity{
-            Entity{
-                .texture = null,
-                .mesh = mesh,
-            },
-        };
-        keyCtrlEntities(&window, RenderMode.Points, entities[0..]);
-    }
+    var entities = []Entity{
+        Entity{
+            .texture = null,
+            .mesh = mesh,
+        },
+    };
+    keyCtrlEntities(&window, RenderMode.Points, entities[0..], !DBG);
 }
 
 test "window.keyctrl.pyramid" {
-    if (DBG) {
-        warn("\n");
-        var direct_allocator = std.heap.DirectAllocator.init();
-        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-        defer arena_allocator.deinit();
-        var pAllocator = &arena_allocator.allocator;
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
-        defer window.deinit();
+    var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+    defer window.deinit();
 
-        // Black background color
-        window.setBgColor(ColorU8.Black);
+    // Black background color
+    window.setBgColor(ColorU8.Black);
 
-        var file_name = "modules/3d-test-resources/pyramid.babylon";
-        var tree = try parseJsonFile(pAllocator, file_name);
-        defer tree.deinit();
+    var file_name = "modules/3d-test-resources/pyramid.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
 
-        var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
-        defer mesh.deinit();
-        assert(std.mem.eql(u8, mesh.name, "pyramid"));
+    var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
+    defer mesh.deinit();
+    assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
-        var texture = Texture.init(pAllocator);
-        defer texture.deinit();
-        try texture.loadFile("modules/3d-test-resources/bricks2.jpg");
+    var texture = Texture.init(pAllocator);
+    defer texture.deinit();
+    try texture.loadFile("modules/3d-test-resources/bricks2.jpg");
 
-        var entities = []Entity{
-            Entity{
-                .texture = texture, //null,
-                .mesh = mesh,
-            },
-        };
-        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
-    }
+    var entities = []Entity{
+        Entity{
+            .texture = texture, //null,
+            .mesh = mesh,
+        },
+    };
+    keyCtrlEntities(&window, RenderMode.Triangles, entities[0..], !DBG);
 }
 
 test "window.keyctrl.tilted.pyramid" {
-    if (DBG) {
-        var direct_allocator = std.heap.DirectAllocator.init();
-        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-        defer arena_allocator.deinit();
-        var pAllocator = &arena_allocator.allocator;
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
-        defer window.deinit();
+    var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+    defer window.deinit();
 
-        // Black background color
-        window.setBgColor(ColorU8.Black);
+    // Black background color
+    window.setBgColor(ColorU8.Black);
 
-        var file_name = "modules/3d-test-resources/tilted-pyramid.babylon";
-        var tree = try parseJsonFile(pAllocator, file_name);
-        defer tree.deinit();
+    var file_name = "modules/3d-test-resources/tilted-pyramid.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
 
-        var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
-        defer mesh.deinit();
-        assert(std.mem.eql(u8, mesh.name, "pyramid"));
+    var mesh = try createMeshFromBabylonJson(pAllocator, "pyramid", tree);
+    defer mesh.deinit();
+    assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
-        var entities = []Entity{
-            Entity{
-                .texture = null,
-                .mesh = mesh,
-            },
-        };
-        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
-    }
+    var entities = []Entity{
+        Entity{
+            .texture = null,
+            .mesh = mesh,
+        },
+    };
+    keyCtrlEntities(&window, RenderMode.Triangles, entities[0..], !DBG);
 }
 
 test "window.keyctrl.suzanne" {
-    if (DBG) {
-        var direct_allocator = std.heap.DirectAllocator.init();
-        var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
-        defer arena_allocator.deinit();
-        var pAllocator = &arena_allocator.allocator;
+    var direct_allocator = std.heap.DirectAllocator.init();
+    var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+    defer arena_allocator.deinit();
+    var pAllocator = &arena_allocator.allocator;
 
-        var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
-        defer window.deinit();
+    var window = try Window.init(pAllocator, 1000, 1000, "testWindow");
+    defer window.deinit();
 
-        // Black background color
-        window.setBgColor(ColorU8.Black);
+    // Black background color
+    window.setBgColor(ColorU8.Black);
 
-        var file_name = "modules/3d-test-resources/suzanne.babylon";
-        var tree = try parseJsonFile(pAllocator, file_name);
-        defer tree.deinit();
+    var file_name = "modules/3d-test-resources/suzanne.babylon";
+    var tree = try parseJsonFile(pAllocator, file_name);
+    defer tree.deinit();
 
-        var mesh = try createMeshFromBabylonJson(pAllocator, "suzanne", tree);
-        defer mesh.deinit();
-        assert(std.mem.eql(u8, mesh.name, "suzanne"));
-        assert(mesh.vertices.len == 507);
-        assert(mesh.faces.len == 968);
+    var mesh = try createMeshFromBabylonJson(pAllocator, "suzanne", tree);
+    defer mesh.deinit();
+    assert(std.mem.eql(u8, mesh.name, "suzanne"));
+    assert(mesh.vertices.len == 507);
+    assert(mesh.faces.len == 968);
 
-        var entities = []Entity{
-            Entity{
-                .texture = null,
-                .mesh = mesh,
-            },
-        };
-        keyCtrlEntities(&window, RenderMode.Triangles, entities[0..]);
-    }
+    var entities = []Entity{
+        Entity{
+            .texture = null,
+            .mesh = mesh,
+        },
+    };
+    keyCtrlEntities(&window, RenderMode.Triangles, entities[0..], !DBG);
 }
 
 fn rotate(mod: u16, angles: V3f32, val: f32) V3f32 {
@@ -550,7 +539,7 @@ fn translate(mod: u16, pos: V3f32, val: f32) V3f32 {
     return new_pos;
 }
 
-fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity) void {
+fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity, presentOnly: bool) void {
     const FocusType = enum {
         Camera,
         Object,
@@ -561,54 +550,60 @@ fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity)
     var camera_target = V3f32.init(0, 0, 0);
     var camera = Camera.init(camera_position, camera_target);
 
-    done: while (true) {
-        // Update the display
+    if (presentOnly) {
         pWindow.clear();
-
-        var center = V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
-        pWindow.drawPointV2f32(center, ColorU8.White);
-        if (DBG_RenderUsingModeWaitForKey) {
-            pWindow.present();
-        }
-
-        if (DBG1) warn("camera={}\n", &camera.position);
-        if (DBG1) warn("rotation={}\n", entities[0].mesh.rotation);
         pWindow.renderUsingMode(renderMode, &camera, entities[0..], true);
-
         pWindow.present();
+    } else {
+        done: while (true) {
+            // Update the display
+            pWindow.clear();
 
-        // Wait for a key
-        var ks = ki.waitForKey("keyCtrlEntities", false, false);
+            var center = V2f32.init(pWindow.widthf / 2, pWindow.heightf / 2);
+            pWindow.drawPointV2f32(center, ColorU8.White);
+            if (DBG_RenderUsingModeWaitForKey) {
+                pWindow.present();
+            }
 
-        // Process the key
+            if (DBG1) warn("camera={}\n", &camera.position);
+            if (DBG1) warn("rotation={}\n", entities[0].mesh.rotation);
+            pWindow.renderUsingMode(renderMode, &camera, entities[0..], true);
 
-        // Check if changing focus
-        switch (ks.code) {
-            gl.SDLK_ESCAPE => break :done,
-            gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
-            gl.SDLK_o => { focus = FocusType.Object; if (DBG) warn("focus = Object"); },
-            else => {},
-        }
+            pWindow.present();
 
-        if (focus == FocusType.Object) {
-            // Process for Object
+            // Wait for a key
+            var ks = ki.waitForKey("keyCtrlEntities", false, false);
+
+            // Process the key
+
+            // Check if changing focus
             switch (ks.code) {
-                gl.SDLK_LEFT => entities[0].mesh.rotation = rotate(ks.mod, entities[0].mesh.rotation, f32(15)),
-                gl.SDLK_RIGHT => entities[0].mesh.rotation = rotate(ks.mod, entities[0].mesh.rotation, -f32(15)),
-                gl.SDLK_UP => entities[0].mesh.position = translate(ks.mod, entities[0].mesh.position, f32(1)),
-                gl.SDLK_DOWN => entities[0].mesh.position = translate(ks.mod, entities[0].mesh.position, -f32(1)),
+                gl.SDLK_ESCAPE => break :done,
+                gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
+                gl.SDLK_o => { focus = FocusType.Object; if (DBG) warn("focus = Object"); },
                 else => {},
             }
-        }
-            
-        if (focus == FocusType.Camera) {
-            // Process for Camera
-            switch (ks.code) {
-                gl.SDLK_LEFT => camera.target = rotate(ks.mod, camera.target, f32(15)),
-                gl.SDLK_RIGHT => camera.target = rotate(ks.mod, camera.target, -f32(15)),
-                gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(1)),
-                gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(1)),
-                else => {},
+
+            if (focus == FocusType.Object) {
+                // Process for Object
+                switch (ks.code) {
+                    gl.SDLK_LEFT => entities[0].mesh.rotation = rotate(ks.mod, entities[0].mesh.rotation, f32(15)),
+                    gl.SDLK_RIGHT => entities[0].mesh.rotation = rotate(ks.mod, entities[0].mesh.rotation, -f32(15)),
+                    gl.SDLK_UP => entities[0].mesh.position = translate(ks.mod, entities[0].mesh.position, f32(1)),
+                    gl.SDLK_DOWN => entities[0].mesh.position = translate(ks.mod, entities[0].mesh.position, -f32(1)),
+                    else => {},
+                }
+            }
+
+            if (focus == FocusType.Camera) {
+                // Process for Camera
+                switch (ks.code) {
+                    gl.SDLK_LEFT => camera.target = rotate(ks.mod, camera.target, f32(15)),
+                    gl.SDLK_RIGHT => camera.target = rotate(ks.mod, camera.target, -f32(15)),
+                    gl.SDLK_UP => camera.position = translate(ks.mod, camera.position, f32(1)),
+                    gl.SDLK_DOWN => camera.position = translate(ks.mod, camera.position, -f32(1)),
+                    else => {},
+                }
             }
         }
     }
@@ -749,7 +744,6 @@ fn showTexture(window: *Window, texture: *Texture) void {
 
 test "test-freetype2" {
     // Based on https://www.freetype.org/freetype2/docs/tutorial/example1.c
-    if (DBG) warn("\n");
 
     // Init Window
     var direct_allocator = std.heap.DirectAllocator.init();
