@@ -36,7 +36,7 @@ const Texture = @import("texture.zig").Texture;
 
 const ki = @import("keyboard_input.zig");
 
-const DBG = true;
+const DBG = false;
 const DBG1 = false;
 const DBG2 = false;
 const DBG3 = false;
