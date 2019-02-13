@@ -34,6 +34,8 @@ const Face = meshns.Face;
 
 const Texture = @import("texture.zig").Texture;
 
+const ki = @import("keyboard_input.zig");
+
 const DBG = true;
 const DBG1 = false;
 const DBG2 = false;
@@ -635,10 +637,10 @@ pub const Window = struct {
                         }
                     },
                 }
-                //if (DBG_RenderUsingModeWaitForKey) {
-                //    pSelf.present();
-                //    _ = waitForKey("dt", true, DBG_RenderUsingModeWaitForKey);
-                //}
+                if (DBG_RenderUsingModeWaitForKey) {
+                    pSelf.present();
+                    _ = ki.waitForKey("dt", true, DBG_RenderUsingModeWaitForKey);
+                }
             }
         }
     }

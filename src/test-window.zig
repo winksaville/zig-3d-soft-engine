@@ -34,7 +34,7 @@ const Face = meshns.Face;
 
 const Texture = @import("texture.zig").Texture;
 
-const ie = @import("input_events.zig");
+const ki = @import("keyboard_input.zig");
 
 const windowns = @import("window.zig");
 const Entity = windowns.Entity;
@@ -504,13 +504,6 @@ test "window.keyctrl.suzanne" {
     }
 }
 
-const KeyState = struct {
-    new_key: bool,
-    code: gl.SDL_Keycode,
-    mod: u16,
-    ei: ie.EventInterface,
-};
-
 fn rotate(mod: u16, angles: V3f32, val: f32) V3f32 {
     var r = geo.rad(val);
     if (DBG_Rotate) warn("rotate: mod={x} angles={} rad(val)={}\n", mod, angles, r);
@@ -554,65 +547,6 @@ fn translate(mod: u16, pos: V3f32, val: f32) V3f32 {
     return new_pos;
 }
 
-fn handleKeyEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
-    var pKey_state = @intToPtr(*KeyState, @ptrToInt(pThing));
-    switch (event.type) {
-        gl.SDL_KEYUP => {
-            pKey_state.*.new_key = true;
-            pKey_state.*.code = event.key.keysym.sym;
-            pKey_state.*.mod = event.key.keysym.mod;
-        },
-        else => {},
-    }
-    return ie.EventResult.Continue;
-}
-
-fn ignoreEvent(pThing: *c_void, event: *gl.SDL_Event) ie.EventResult {
-    return ie.EventResult.Continue;
-}
-
-var g_ks = KeyState{
-    .new_key = false,
-    .code = undefined,
-    .mod = undefined,
-    .ei = ie.EventInterface{
-        .event = undefined,
-        .handleKeyEvent = handleKeyEvent,
-        .handleMouseEvent = ignoreEvent,
-        .handleOtherEvent = ignoreEvent,
-    },
-};
-
-/// Wait for a key
-fn waitForKey(s: []const u8, exitOnEscape: bool, debug: bool) *KeyState {
-    if (debug) warn("{}, waiting for key: ...", s);
-
-    g_ks.new_key = false;
-    while (g_ks.new_key == false) {
-        _ = ie.pollInputEvent(&g_ks, &g_ks.ei);
-    }
-
-    if (debug) warn(" g_ks.mod={} g_ks.code={}\n", g_ks.mod, g_ks.code);
-
-    if (g_ks.code == gl.SDLK_ESCAPE) if (exitOnEscape) std.os.exit(1);
-
-    return &g_ks;
-}
-
-/// Wait for Esc key
-fn waitForEsc(s: []const u8) void {
-    done: while (DBG) {
-        // Wait for a key
-        var ks = waitForKey(s, false, true);
-
-        // Stop if ESCAPE
-        switch (ks.code) {
-            gl.SDLK_ESCAPE => break :done,
-            else => {},
-        }
-    }
-}
-
 fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity) void {
     const FocusType = enum {
         Camera,
@@ -641,7 +575,7 @@ fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity)
         pWindow.present();
 
         // Wait for a key
-        var ks = waitForKey("keyCtrlEntities", false, false);
+        var ks = ki.waitForKey("keyCtrlEntities", false, false);
 
         // Process the key
 
@@ -1036,6 +970,6 @@ test "test-freetype2" {
     window.present();
 
     if (DBG) {
-        waitForEsc("Prese ESC to stop");
+        ki.waitForEsc("Prese ESC to stop");
     }
 }
