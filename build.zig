@@ -9,15 +9,14 @@ pub fn build(b: *Builder) void {
     exe.setBuildMode(mode);
 
     if (windows) {
-        exe.setTarget(builtin.Arch.x86_64, builtin.Os.windows, builtin.Environ.gnu);
+        exe.setTarget(builtin.Arch.x86_64, builtin.Os.windows, builtin.Abi.gnu);
     }
 
     exe.linkSystemLibrary("c");
     exe.linkSystemLibrary("SDL2");
     exe.setOutputPath("./3d-soft-engine");
-    
+
     b.default_step.dependOn(&exe.step);
 
     b.installArtifact(exe);
 }
-

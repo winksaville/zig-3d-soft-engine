@@ -4,7 +4,7 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
-const gl = @import("../modules/zig-sdl2/src/index.zig");
+const gl = @import("modules/zig-sdl2/src/index.zig");
 
 const ie = @import("input_events.zig");
 const wdw = @import("window.zig");

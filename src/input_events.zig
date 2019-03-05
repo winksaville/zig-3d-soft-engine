@@ -3,7 +3,7 @@ const std = @import("std");
 const mem = std.mem;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
-const gl = @import("../modules/zig-sdl2/src/index.zig");
+const gl = @import("modules/zig-sdl2/src/index.zig");
 
 pub const EventResult = enum {
     NoEvents,

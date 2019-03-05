@@ -8,26 +8,26 @@ const math = std.math;
 const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
-const gl = @import("../modules/zig-sdl2/src/index.zig");
+const gl = @import("modules/zig-sdl2/src/index.zig");
 
-const misc = @import("../modules/zig-misc/index.zig");
+const misc = @import("modules/zig-misc/index.zig");
 const saturateCast = misc.saturateCast;
 
 const colorns = @import("color.zig");
 const Color = colorns.Color;
 const ColorU8 = colorns.ColorU8;
 
-const geo = @import("../modules/zig-geometry/index.zig");
+const geo = @import("modules/zig-geometry/index.zig");
 const V2f32 = geo.V2f32;
 const V3f32 = geo.V3f32;
 const M44f32 = geo.M44f32;
 
-const parseJsonFile = @import("../modules/zig-json/parse_json_file.zig").parseJsonFile;
+const parseJsonFile = @import("modules/zig-json/parse_json_file.zig").parseJsonFile;
 const createMeshFromBabylonJson = @import("create_mesh_from_babylon_json.zig").createMeshFromBabylonJson;
 
 const Camera = @import("camera.zig").Camera;
 
-const meshns = @import("../modules/zig-geometry/mesh.zig");
+const meshns = @import("modules/zig-geometry/mesh.zig");
 const Mesh = meshns.Mesh;
 const Vertex = meshns.Vertex;
 const Face = meshns.Face;
@@ -310,11 +310,11 @@ test "window.render.cube" {
     mesh.faces[10] = Face{ .a = 1, .b = 6, .c = 2, .normal = undefined };
     mesh.faces[11] = Face{ .a = 1, .b = 5, .c = 6, .normal = undefined };
 
-    var entity = Entity {
+    var entity = Entity{
         .texture = null,
         .mesh = mesh,
     };
-    var entities = []Entity { entity };
+    var entities = []Entity{entity};
 
     var movement = V3f32.init(0.01, 0.01, 0); // Small amount of movement
 
@@ -330,8 +330,7 @@ test "window.render.cube" {
         window.clear();
 
         if (DBG1) {
-            warn("rotation={.5}:{.5}:{.5}\n", entities[0].mesh.rotation.x(),
-                entities[0].mesh.rotation.y(), entities[0].mesh.rotation.z());
+            warn("rotation={.5}:{.5}:{.5}\n", entities[0].mesh.rotation.x(), entities[0].mesh.rotation.y(), entities[0].mesh.rotation.z());
         }
         window.render(&camera, entities);
 
@@ -345,7 +344,6 @@ test "window.render.cube" {
         if (timer.read() > end_time) break;
     }
 }
-
 
 test "window.keyctrl.triangle" {
     var direct_allocator = std.heap.DirectAllocator.init();
@@ -368,12 +366,10 @@ test "window.keyctrl.triangle" {
 
     mesh.faces[0] = Face.initComputeNormal(mesh.vertices, 0, 1, 2);
 
-    var entities = []Entity{
-        Entity{
-            .texture = null,
-            .mesh = mesh,
-        },
-    };
+    var entities = []Entity{Entity{
+        .texture = null,
+        .mesh = mesh,
+    }};
     keyCtrlEntities(&window, RenderMode.Points, entities[0..], !DBG);
 }
 
@@ -386,7 +382,7 @@ test "window.keyctrl.cube" {
     var window = try Window.init(pAllocator, 1000, 1000, "render.cube");
     defer window.deinit();
 
-    var file_name = "modules/3d-test-resources/cube.babylon";
+    var file_name = "src/modules/3d-test-resources/cube.babylon";
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
 
@@ -394,12 +390,10 @@ test "window.keyctrl.cube" {
     defer mesh.deinit();
     assert(std.mem.eql(u8, mesh.name, "cube"));
 
-    var entities = []Entity{
-        Entity{
-            .texture = null,
-            .mesh = mesh,
-        },
-    };
+    var entities = []Entity{Entity{
+        .texture = null,
+        .mesh = mesh,
+    }};
     keyCtrlEntities(&window, RenderMode.Points, entities[0..], !DBG);
 }
 
@@ -415,7 +409,7 @@ test "window.keyctrl.pyramid" {
     // Black background color
     window.setBgColor(ColorU8.Black);
 
-    var file_name = "modules/3d-test-resources/pyramid.babylon";
+    var file_name = "src/modules/3d-test-resources/pyramid.babylon";
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
 
@@ -425,14 +419,12 @@ test "window.keyctrl.pyramid" {
 
     var texture = Texture.init(pAllocator);
     defer texture.deinit();
-    try texture.loadFile("modules/3d-test-resources/bricks2.jpg");
+    try texture.loadFile("src/modules/3d-test-resources/bricks2.jpg");
 
-    var entities = []Entity{
-        Entity{
-            .texture = texture, //null,
-            .mesh = mesh,
-        },
-    };
+    var entities = []Entity{Entity{
+        .texture = texture, //null,
+        .mesh = mesh,
+    }};
     keyCtrlEntities(&window, RenderMode.Triangles, entities[0..], !DBG);
 }
 
@@ -448,7 +440,7 @@ test "window.keyctrl.tilted.pyramid" {
     // Black background color
     window.setBgColor(ColorU8.Black);
 
-    var file_name = "modules/3d-test-resources/tilted-pyramid.babylon";
+    var file_name = "src/modules/3d-test-resources/tilted-pyramid.babylon";
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
 
@@ -456,12 +448,10 @@ test "window.keyctrl.tilted.pyramid" {
     defer mesh.deinit();
     assert(std.mem.eql(u8, mesh.name, "pyramid"));
 
-    var entities = []Entity{
-        Entity{
-            .texture = null,
-            .mesh = mesh,
-        },
-    };
+    var entities = []Entity{Entity{
+        .texture = null,
+        .mesh = mesh,
+    }};
     keyCtrlEntities(&window, RenderMode.Triangles, entities[0..], !DBG);
 }
 
@@ -477,7 +467,7 @@ test "window.keyctrl.suzanne" {
     // Black background color
     window.setBgColor(ColorU8.Black);
 
-    var file_name = "modules/3d-test-resources/suzanne.babylon";
+    var file_name = "src/modules/3d-test-resources/suzanne.babylon";
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
 
@@ -487,12 +477,10 @@ test "window.keyctrl.suzanne" {
     assert(mesh.vertices.len == 507);
     assert(mesh.faces.len == 968);
 
-    var entities = []Entity{
-        Entity{
-            .texture = null,
-            .mesh = mesh,
-        },
-    };
+    var entities = []Entity{Entity{
+        .texture = null,
+        .mesh = mesh,
+    }};
     keyCtrlEntities(&window, RenderMode.Triangles, entities[0..], !DBG);
 }
 
@@ -579,8 +567,14 @@ fn keyCtrlEntities(pWindow: *Window, renderMode: RenderMode, entities: []Entity,
             // Check if changing focus
             switch (ks.code) {
                 gl.SDLK_ESCAPE => break :done,
-                gl.SDLK_c => { focus = FocusType.Camera; if (DBG) warn("focus = Camera"); },
-                gl.SDLK_o => { focus = FocusType.Object; if (DBG) warn("focus = Object"); },
+                gl.SDLK_c => {
+                    focus = FocusType.Camera;
+                    if (DBG) warn("focus = Camera");
+                },
+                gl.SDLK_o => {
+                    focus = FocusType.Object;
+                    if (DBG) warn("focus = Object");
+                },
                 else => {},
             }
 
@@ -621,7 +615,7 @@ test "window.bm.suzanne" {
     // Black background color
     window.setBgColor(ColorU8.Black);
 
-    var file_name = "modules/3d-test-resources/suzanne.babylon";
+    var file_name = "src/modules/3d-test-resources/suzanne.babylon";
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
 
@@ -632,12 +626,10 @@ test "window.bm.suzanne" {
     assert(mesh.faces.len == 968);
 
     var durationInMs: u64 = 1000;
-    var entities = []Entity{
-        Entity{
-            .texture = null,
-            .mesh = mesh,
-        },
-    };
+    var entities = []Entity{Entity{
+        .texture = null,
+        .mesh = mesh,
+    }};
     var loops = try timeRenderer(&window, durationInMs, RenderMode.Triangles, entities[0..]);
 
     var fps: f32 = @intToFloat(f32, loops * time.ms_per_s) / @intToFloat(f32, durationInMs);
@@ -676,10 +668,10 @@ fn timeRenderer(pWindow: *Window, durationInMs: u64, renderMode: RenderMode, ent
     return loops;
 }
 
-const ft2 = @import("../modules/zig-freetype2/freetype2.zig");
+const ft2 = @import("modules/zig-freetype2/freetype2.zig");
 
 const CHAR_SIZE: usize = 14; // 14 "points" for character size
-const DPI: usize = 140;      // dots per inch of my display
+const DPI: usize = 140; // dots per inch of my display
 
 fn ft_bitmapToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: usize, y: usize, color: ColorU8, background: ColorU8) void {
     var i: usize = 0;
@@ -690,8 +682,8 @@ fn ft_bitmapToTexture(texture: *Texture, bitmap: *ft2.FT_Bitmap, x: usize, y: us
     var glyph_height: usize = @intCast(usize, bitmap.rows);
     var x_max: usize = x + glyph_width;
     var y_max: usize = y + glyph_height;
-    if (DBG_ft_bitmapToTexture) warn("ft_bitmapToTexture: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n",
-        x, y, x_max, y_max, glyph_width, glyph_height, bitmap.buffer);
+    if (DBG_ft_bitmapToTexture)
+        warn("ft_bitmapToTexture: x={} y={} x_max={} y_max={} glyph_width={} glyph_height={} buffer={*}\n", x, y, x_max, y_max, glyph_width, glyph_height, bitmap.buffer);
 
     i = x;
     p = 0;
@@ -813,7 +805,7 @@ test "test-freetype2" {
     // Setup parameters
 
     // Filename for font
-    const cfilename = c"modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationMono-Regular.ttf";
+    const cfilename = c"src/modules/3d-test-resources/liberation-fonts-ttf-2.00.4/LiberationMono-Regular.ttf";
 
     // Convert Rotate angle in radians for font
     var angleInDegrees = f64(0.0);
@@ -824,7 +816,7 @@ test "test-freetype2" {
 
     // Init FT library
     var pLibrary: ?*ft2.FT_Library = undefined;
-    assert( ft2.FT_Init_FreeType( &pLibrary ) == 0);
+    assert(ft2.FT_Init_FreeType(&pLibrary) == 0);
     defer assert(ft2.FT_Done_FreeType(pLibrary) == 0);
 
     // Load a type face
@@ -844,7 +836,7 @@ test "test-freetype2" {
 
     // Setup pen location
     var pen: ft2.FT_Vector = undefined;
-    pen.x = ft2.f64_fixed26_6(5);   // x = 5 points from left side
+    pen.x = ft2.f64_fixed26_6(5); // x = 5 points from left side
     pen.y = ft2.f64_fixed26_6(CHAR_SIZE); // y = CHAR_SIZE in points from top
 
     // Create and Initialize texture
@@ -861,15 +853,12 @@ test "test-freetype2" {
         assert(ft2.FT_Load_Char(pFace, text[n], ft2.FT_LOAD_RENDER) == 0);
 
         if (DBG) {
-            warn("{c} position: left={} top={} width={} rows={} pitch={} adv_x={} hAdv={} hBearingX=={}\n",
-                text[n], slot.bitmap_left, slot.bitmap_top, slot.bitmap.width, slot.bitmap.rows, slot.bitmap.pitch,
-                slot.advance.x, slot.metrics.horiAdvance, slot.metrics.horiBearingX);
+            warn("{c} position: left={} top={} width={} rows={} pitch={} adv_x={} hAdv={} hBearingX=={}\n", text[n], slot.bitmap_left, slot.bitmap_top, slot.bitmap.width, slot.bitmap.rows, slot.bitmap.pitch, slot.advance.x, slot.metrics.horiAdvance, slot.metrics.horiBearingX);
         }
 
         // Draw the character at top of texture
         var line_spacing: usize = 50; // > Maximum "top" of character
-        ft_bitmapToTexture(&texture, &slot.bitmap, @intCast(usize, slot.bitmap_left),
-            (6 * line_spacing) - @intCast(usize, slot.bitmap_top), ColorU8.Black, ColorU8.White);
+        ft_bitmapToTexture(&texture, &slot.bitmap, @intCast(usize, slot.bitmap_left), (6 * line_spacing) - @intCast(usize, slot.bitmap_top), ColorU8.Black, ColorU8.White);
 
         // Move the pen
         pen.x += slot.advance.x;
@@ -885,11 +874,11 @@ test "test-freetype2" {
     window.setBgColor(ColorU8.Black);
     window.clear();
 
-    var entity = Entity {
+    var entity = Entity{
         .texture = texture,
         .mesh = mesh,
     };
-    var entities = []Entity { entity };
+    var entities = []Entity{entity};
 
     //showTexture(&window, &texture);
 

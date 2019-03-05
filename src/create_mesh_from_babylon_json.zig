@@ -3,9 +3,9 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const Allocator = std.mem.Allocator;
 
-const geo = @import("../modules/zig-geometry/index.zig");
-const json = @import("../modules/zig-json/json.zig");
-const parseJsonFile = @import("../modules/zig-json/parse_json_file.zig").parseJsonFile;
+const geo = @import("modules/zig-geometry/index.zig");
+const json = @import("modules/zig-json/json.zig");
+const parseJsonFile = @import("modules/zig-json/parse_json_file.zig").parseJsonFile;
 
 const DBG = false;
 const DBG1 = false;
@@ -51,7 +51,7 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
         var u: f32 = if (uvs_iter.next()) |nu| try nu.asFloat(f32) else 0.0;
         var v: f32 = if (uvs_iter.next()) |nv| try nv.asFloat(f32) else 0.0;
 
-        mesh.vertices[i] = geo.Vertex {
+        mesh.vertices[i] = geo.Vertex{
             .coord = geo.V3f32.init(x, y, z),
             .world_coord = geo.V3f32.init(0, 0, 0),
             .normal_coord = geo.V3f32.init(nx, ny, nz),
@@ -68,7 +68,7 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
 
         var normal = geo.computeFaceNormal(mesh.vertices, a, b, c);
 
-        mesh.faces[i] = geo.Face { .a=a, .b=b, .c=c, .normal=normal };
+        mesh.faces[i] = geo.Face{ .a = a, .b = b, .c = c, .normal = normal };
         if (DBG1) warn("face[{}]={{ .a={} .b={} .c={} .normal={} }}\n", i, mesh.faces[i].a, mesh.faces[i].b, mesh.faces[i].c, mesh.faces[i].normal);
     }
 
@@ -76,7 +76,7 @@ pub fn createMeshFromBabylonJson(pAllocator: *Allocator, name: []const u8, tree:
 }
 
 test "create_mesh_from_babylon_json.cube" {
-    var file_name = "modules/3d-test-resources/cube.babylon";
+    var file_name = "src/modules/3d-test-resources/cube.babylon";
     var pAllocator = std.heap.c_allocator;
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();
@@ -88,7 +88,7 @@ test "create_mesh_from_babylon_json.cube" {
 }
 
 test "create_mesh_from_babylon_json.suzanne" {
-    var file_name = "modules/3d-test-resources/suzanne.babylon";
+    var file_name = "src/modules/3d-test-resources/suzanne.babylon";
     var pAllocator = std.heap.c_allocator;
     var tree = try parseJsonFile(pAllocator, file_name);
     defer tree.deinit();

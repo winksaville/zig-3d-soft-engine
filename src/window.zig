@@ -8,26 +8,26 @@ const math = std.math;
 const Allocator = mem.Allocator;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
-const gl = @import("../modules/zig-sdl2/src/index.zig");
+const gl = @import("modules/zig-sdl2/src/index.zig");
 
-const misc = @import("../modules/zig-misc/index.zig");
+const misc = @import("modules/zig-misc/index.zig");
 const saturateCast = misc.saturateCast;
 
 const colorns = @import("color.zig");
 const Color = colorns.Color;
 const ColorU8 = colorns.ColorU8;
 
-const geo = @import("../modules/zig-geometry/index.zig");
+const geo = @import("modules/zig-geometry/index.zig");
 const V2f32 = geo.V2f32;
 const V3f32 = geo.V3f32;
 const M44f32 = geo.M44f32;
 
-const parseJsonFile = @import("../modules/zig-json/parse_json_file.zig").parseJsonFile;
+const parseJsonFile = @import("modules/zig-json/parse_json_file.zig").parseJsonFile;
 const createMeshFromBabylonJson = @import("create_mesh_from_babylon_json.zig").createMeshFromBabylonJson;
 
 const Camera = @import("camera.zig").Camera;
 
-const meshns = @import("../modules/zig-geometry/mesh.zig");
+const meshns = @import("modules/zig-geometry/mesh.zig");
 const Mesh = meshns.Mesh;
 const Vertex = meshns.Vertex;
 const Face = meshns.Face;
@@ -573,7 +573,6 @@ pub const Window = struct {
             var world_to_view_matrix = geo.mulM44f32(&world_matrix, &view_matrix);
             var transform_matrix = geo.mulM44f32(&world_to_view_matrix, &perspective_matrix);
             if (DBG_RenderUsingMode) warn("transform_matrix:\n{}\n", &transform_matrix);
-
 
             if (DBG_RenderUsingMode) warn("\n");
             for (mesh.faces) |face, i| {

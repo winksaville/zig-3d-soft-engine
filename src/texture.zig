@@ -5,8 +5,8 @@ const math = std.math;
 
 const Allocator = std.mem.Allocator;
 
-const geo = @import("../modules/zig-geometry/index.zig");
-const gl = @import("../modules/zig-sdl2/src/index.zig");
+const geo = @import("modules/zig-geometry/index.zig");
+const gl = @import("modules/zig-sdl2/src/index.zig");
 const ColorU8 = @import("../src/color.zig").ColorU8;
 
 const DBG = false;
@@ -21,7 +21,7 @@ pub const Texture = struct {
     pub pixels_owned: bool,
 
     pub fn init(pAllocator: *Allocator) Self {
-        return Self {
+        return Self{
             .pAllocator = pAllocator,
             .width = 0,
             .height = 0,
@@ -30,14 +30,14 @@ pub const Texture = struct {
         };
     }
 
-    pub fn initPixels(pAllocator: *Allocator, width: usize, height: usize, color: ColorU8) !Self {
+    pub fn initPixels(pAllocator: *Allocator, width: usize, height: usize, color: ColorU8) anyerror!Self {
         var count: usize = width * height;
         var pixels = try pAllocator.alloc(ColorU8, count);
         var i: usize = 0;
         while (i < count) : (i += 1) {
             pixels[i] = color;
         }
-        return Self {
+        return Self{
             .pAllocator = pAllocator,
             .width = width,
             .height = height,
@@ -52,7 +52,7 @@ pub const Texture = struct {
         }
     }
 
-    pub fn loadFile(pSelf: *Self, filename: []const u8) !void {
+    pub fn loadFile(pSelf: *Self, filename: []const u8) anyerror!void {
         var cfilename = try std.cstr.addNullByte(pSelf.pAllocator, filename);
         defer pSelf.pAllocator.free(cfilename);
 
@@ -147,7 +147,6 @@ test "texture.initPixels" {
     defer arena_allocator.deinit();
     var pAllocator = &arena_allocator.allocator;
 
-
     // Create and Initialize text.pixels
     var texture = try Texture.initPixels(pAllocator, 1024, 512, ColorU8.Black);
     defer texture.deinit();
@@ -159,8 +158,6 @@ test "texture.initPixels" {
     assert(texture.pixels.?[0].b == ColorU8.Black.b);
 }
 
-
-
 test "texture.loadFile.bricks2" {
     var direct_allocator = std.heap.DirectAllocator.init();
     var arena_allocator = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
@@ -169,7 +166,7 @@ test "texture.loadFile.bricks2" {
 
     var texture = Texture.init(pAllocator);
     defer texture.deinit();
-    try texture.loadFile("modules/3d-test-resources/bricks2.jpg");
+    try texture.loadFile("src/modules/3d-test-resources/bricks2.jpg");
 
     assert(texture.pixels != null);
 

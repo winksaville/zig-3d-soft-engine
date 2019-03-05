@@ -6,7 +6,7 @@ const math = std.math;
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 
-const misc = @import("../modules/zig-misc/index.zig");
+const misc = @import("modules/zig-misc/index.zig");
 const saturateCast = misc.saturateCast;
 
 const DBG = false;
@@ -17,11 +17,11 @@ pub fn Color(comptime A: type, comptime R: type, comptime G: type, comptime B: t
     return struct {
         const Self = @This();
 
-        const Black = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
-        const White = Self{ .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.maxValue(G), .b = misc.maxValue(B) };
-        const Red = Self{ .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
-        const Green = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.maxValue(G), .b = misc.minValue(B) };
-        const Blue = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.maxValue(B) };
+        pub const Black = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
+        pub const White = Self{ .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.maxValue(G), .b = misc.maxValue(B) };
+        pub const Red = Self{ .a = misc.maxValue(A), .r = misc.maxValue(R), .g = misc.minValue(G), .b = misc.minValue(B) };
+        pub const Green = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.maxValue(G), .b = misc.minValue(B) };
+        pub const Blue = Self{ .a = misc.maxValue(A), .r = misc.minValue(R), .g = misc.minValue(G), .b = misc.maxValue(B) };
 
         a: A,
         r: R,

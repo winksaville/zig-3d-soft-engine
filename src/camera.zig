@@ -3,7 +3,7 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const math = std.math;
 
-const geo = @import("../modules/zig-geometry/index.zig");
+const geo = @import("modules/zig-geometry/index.zig");
 
 pub const Camera = struct {
     const Self = @This();

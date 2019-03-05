@@ -1,7 +1,7 @@
 const std = @import("std");
 const warn = std.debug.warn;
 
-const gl = @import("../modules/zig-sdl2/src/index.zig");
+const gl = @import("modules/zig-sdl2/src/index.zig");
 const ie = @import("input_events.zig");
 
 pub const KeyState = struct {
